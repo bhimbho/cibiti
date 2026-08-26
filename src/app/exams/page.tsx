@@ -40,8 +40,9 @@ export default function ExamsPage() {
               <p>{exam.description ?? "No description provided."}</p>
               <div className="exam-card-meta"><span>{exam.timeLimitMin ? `${exam.timeLimitMin} min` : "Untimed"}</span><span>Pass: {exam.passMarkPct}%</span><span>{exam.maxAttempts} attempt{exam.maxAttempts > 1 ? "s" : ""}</span></div>
               <div className="exam-card-actions">
+                <a className="secondary-button" href={`/exams/${exam.id}`}>Manage</a>
                 {exam.status === "PUBLISHED" && <a className="secondary-button" href={`/exams/${exam.id}/take`}>Take exam</a>}
-                {exam.status !== "PUBLISHED" && <span className="draft-hint">Draft — publish to make it available</span>}
+                {exam.status !== "PUBLISHED" && <span className="draft-hint">Draft</span>}
               </div>
             </article>
           ))}
