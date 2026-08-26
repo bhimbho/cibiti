@@ -27,7 +27,7 @@ export default function QuestionDetailPage() {
 
   return (
     <main className="authoring-page">
-      <div className="authoring-header"><div><a className="back-link" href="/question-bank">&lt;- Back to question bank</a><p className="eyebrow">CONTENT STUDIO</p><h1>Question detail</h1><p>Review the question and its answer key.</p></div><span className={`status-pill ${question.difficulty.toLowerCase()}`}>{question.difficulty}</span></div>
+      <div className="authoring-header"><div><a className="back-link" href="/question-bank">&lt;- Back to question bank</a><p className="eyebrow">CONTENT STUDIO</p><h1>Question detail</h1><p>Review the question and its answer key.</p></div><div className="exam-detail-actions"><span className={`status-pill ${question.difficulty.toLowerCase()}`}>{question.difficulty}</span><a className="secondary-button" href={`/question-bank/${question.id}/edit`}>Edit</a></div></div>
       <section className="authoring-layout">
         <div className="question-form">
           <div className="form-heading"><div><p className="eyebrow">QUESTION</p><h2>{question.type.replaceAll("_", " ")}</h2></div><span className="exam-card-count">{question.points} pts</span></div>
