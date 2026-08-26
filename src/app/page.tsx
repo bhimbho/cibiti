@@ -1,68 +1,37 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="dashboard-shell">
+      <aside className="sidebar">
+        <div className="brand"><span className="brand-mark">C</span><span>Cibiti</span></div>
+        <div className="workspace-label">MY WORKSPACE</div>
+        <nav className="nav-list" aria-label="Main navigation">
+          <a className="nav-item active" href="#overview"><span className="nav-icon">+</span>Overview</a>
+          <a className="nav-item" href="#exams"><span className="nav-icon">[]</span>My exams</a>
+          <a className="nav-item" href="#results"><span className="nav-icon">/</span>Results</a>
+          <a className="nav-item" href="#practice"><span className="nav-icon">*</span>Practice bank</a>
+        </nav>
+        <div className="sidebar-bottom">
+          <a className="nav-item" href="#help"><span className="nav-icon">?</span>Help center</a>
+          <div className="profile"><div className="avatar">AO</div><div><strong>Alex Okafor</strong><span>Student account</span></div><span className="more">...</span></div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      </aside>
+
+      <main className="main-content" id="overview">
+        <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> Overview</div><div className="top-actions"><button className="icon-button" aria-label="Notifications">!!</button><div className="mini-avatar">AO</div></div></header>
+        <section className="intro"><div><p className="eyebrow">Wednesday, August 26, 2026</p><h1>Good afternoon, Alex.</h1><p className="intro-copy">Keep your momentum going. You have one assessment waiting for you.</p></div><a className="primary-button" href="#exams">View my exams <span>-&gt;</span></a></section>
+
+        <section className="stats-grid" aria-label="Progress summary">
+          <article className="stat-card"><div className="stat-label">ASSESSMENTS COMPLETED</div><strong>12</strong><span className="trend positive">+3 this month</span></article>
+          <article className="stat-card"><div className="stat-label">AVERAGE SCORE</div><strong>84<span className="unit">%</span></strong><span className="trend positive">+6% from last month</span></article>
+          <article className="stat-card highlight"><div className="stat-label">CURRENT STREAK</div><strong>07 <span className="unit">days</span></strong><span className="trend neutral">Personal best: 14 days</span></article>
+        </section>
+
+        <section className="content-grid">
+          <div className="panel upcoming-panel" id="exams"><div className="panel-heading"><div><p className="eyebrow">NEXT UP</p><h2>Upcoming assessments</h2></div><a href="#all-exams">See all <span>-&gt;</span></a></div><div className="exam-row"><div className="subject-icon blue">M</div><div className="exam-details"><h3>Mathematics: Core Concepts</h3><p>20 questions <span>•</span> 30 minutes</p></div><div className="exam-date"><span>Due in</span><strong>2 days</strong></div><a className="secondary-button" href="#begin">Begin</a></div><div className="exam-row"><div className="subject-icon green">S</div><div className="exam-details"><h3>General Science Review</h3><p>15 questions <span>•</span> 20 minutes</p></div><div className="exam-date"><span>Due in</span><strong>8 days</strong></div><button className="outline-button">Preview</button></div></div>
+          <div className="panel activity-panel"><div className="panel-heading"><div><p className="eyebrow">YOUR JOURNEY</p><h2>Recent activity</h2></div><a href="#results">View results <span>-&gt;</span></a></div><div className="activity-item"><div className="activity-dot done">+</div><div><h3>Biology Fundamentals</h3><p>Completed yesterday</p></div><strong>92%</strong></div><div className="activity-item"><div className="activity-dot done">+</div><div><h3>English Comprehension</h3><p>Completed Aug 21</p></div><strong>81%</strong></div><div className="activity-item"><div className="activity-dot review">~</div><div><h3>Physics: Motion & Energy</h3><p>Needs review</p></div><strong className="muted-score">68%</strong></div></div>
+        </section>
+
+        <section className="focus-banner"><div className="focus-symbol">//</div><div><p className="eyebrow">A LITTLE FOCUS GOES A LONG WAY</p><h2>Ready for a quick practice round?</h2><p>Sharpen a topic in five questions and keep your streak alive.</p></div><a href="#practice" className="text-button">Practice now <span>-&gt;</span></a></section>
       </main>
     </div>
   );

@@ -1,0 +1,170 @@
+// Prisma schema for the CBT (Computer-Based Testing) system
+// Phase 1: Foundation — core models for users, questions, exams, and attempts
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  MULTI_SELECT
+  TRUE_FALSE
+  FILL_BLANK
+  MATCHING
+  ORDERING
+  ESSAY
+  SHORT_ANSWER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+  TIMED_OUT
+}
+
+// ---------- Models ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         Role     @default(STUDENT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attempts         Attempt[]
+  exams            Exam[]    @relation("ExamAuthor")
+  authoredQuestions Question[]
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  questions Question[]
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  type        QuestionType
+  prompt      String
+  // JSON payload: options, correct answer(s), matching pairs, ordering, etc.
+  data        Json
+  explanation String?
+  difficulty  Difficulty   @default(MEDIUM)
+  points      Int          @default(1)
+  timeEstimateSec Int?     // estimated seconds to answer
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  createdBy User       @relation(fields: [createdById], references: [id])
+  tags      Tag[]
+  examItems ExamQuestion[]
+  answers   AttemptAnswer[]
+
+  @@index([createdById])
+}
+
+model Exam {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      ExamStatus @default(DRAFT)
+  // Exam settings
+  timeLimitMin Int?      // null = untimed
+  shuffleQuestions Boolean @default(false)
+  shuffleOptions   Boolean @default(false)
+  passMarkPct     Int     @default(50)
+  adaptive        Boolean @default(false) // CAT mode (Phase 4)
+  maxAttempts     Int     @default(1)
+  authorId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  author      User           @relation("ExamAuthor", fields: [authorId], references: [id])
+  items       ExamQuestion[]
+  attempts    Attempt[]
+
+  @@index([authorId])
+}
+
+model ExamQuestion {
+  id         String @id @default(cuid())
+  examId     String
+  questionId String
+  order      Int
+  points     Int    @default(1)
+
+  exam     Exam     @relation(fields: [examId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([examId, questionId])
+  @@index([questionId])
+}
+
+model Attempt {
+  id         String        @id @default(cuid())
+  examId     String
+  userId     String
+  status     AttemptStatus @default(IN_PROGRESS)
+  score      Int?          // raw score
+  maxScore   Int?
+  startedAt  DateTime      @default(now())
+  submittedAt DateTime?
+  // JSON snapshot of the exam as taken (question order, shuffled options)
+  snapshot   Json?
+
+  exam    Exam            @relation(fields: [examId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+  answers AttemptAnswer[]
+
+  @@unique([examId, userId, startedAt])
+  @@index([userId])
+  @@index([examId])
+}
+
+model AttemptAnswer {
+  id         String @id @default(cuid())
+  attemptId  String
+  questionId String
+  // JSON payload: the student's response
+  response   Json
+  isCorrect  Boolean?
+  pointsEarned Int?
+  gradedAt   DateTime?
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+}
