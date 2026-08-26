@@ -29,7 +29,7 @@ export default function AttemptReviewPage() {
 
   return (
     <main className="authoring-page">
-      <div className="authoring-header"><div><a className="back-link" href="/results">&lt;- Back to results</a><p className="eyebrow">REVIEW</p><h1>{attempt.title}</h1><p>Submitted {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString() : "—"}</p></div><div className="review-score"><strong className={passed ? "score-pass" : "score-fail"}>{pct}%</strong><span>{attempt.score} / {attempt.maxScore} points</span></div></div>
+      <div className="authoring-header"><div><a className="back-link" href="/results">&lt;- Back to results</a><p className="eyebrow">REVIEW</p><h1>{attempt.title}</h1><p>Submitted {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString() : "—"}</p></div><div className="review-score"><strong className={passed ? "score-pass" : "score-fail"}>{pct}%</strong><span>{attempt.score} / {attempt.maxScore} points</span>{passed && <a className="secondary-button" href={`/certificates/${attempt.id}`}>View certificate</a>}</div></div>
       <section className="review-list">
         {review.map((item, index) => (
           <article className={`review-item ${item.isCorrect ? "correct" : "incorrect"}`} key={item.questionId}>
