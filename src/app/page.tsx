@@ -33,6 +33,7 @@ export default function Home() {
           <a className="nav-item" href="/results"><span className="nav-icon">/</span>Results</a>
           {!isStudent && <a className="nav-item" href="/question-bank"><span className="nav-icon">*</span>Question bank</a>}
           {!isStudent && <a className="nav-item" href="/exams/new"><span className="nav-icon">E</span>Create exam</a>}
+          {!isStudent && <a className="nav-item" href="/analytics"><span className="nav-icon">%</span>Analytics</a>}
         </nav>
         <div className="sidebar-bottom">
           <a className="nav-item" href="/sign-in"><span className="nav-icon">?</span>Sign in</a>
