@@ -8,7 +8,7 @@ export default function Home() {
           <a className="nav-item active" href="#overview"><span className="nav-icon">+</span>Overview</a>
           <a className="nav-item" href="#exams"><span className="nav-icon">[]</span>My exams</a>
           <a className="nav-item" href="#results"><span className="nav-icon">/</span>Results</a>
-          <a className="nav-item" href="#practice"><span className="nav-icon">*</span>Practice bank</a>
+          <a className="nav-item" href="/question-bank"><span className="nav-icon">*</span>Question bank</a>
         </nav>
         <div className="sidebar-bottom">
           <a className="nav-item" href="#help"><span className="nav-icon">?</span>Help center</a>
