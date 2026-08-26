@@ -10,6 +10,7 @@ export default function Home() {
           <a className="nav-item" href="#results"><span className="nav-icon">/</span>Results</a>
           <a className="nav-item" href="/question-bank"><span className="nav-icon">*</span>Question bank</a>
           <a className="nav-item" href="/exams/new"><span className="nav-icon">E</span>Create exam</a>
+          <a className="nav-item" href="/exams/demo/take"><span className="nav-icon">T</span>Take exam</a>
         </nav>
         <div className="sidebar-bottom">
           <a className="nav-item" href="#help"><span className="nav-icon">?</span>Help center</a>
