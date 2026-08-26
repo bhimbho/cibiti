@@ -26,12 +26,12 @@ export default function QuestionBankListPage() {
         <section className="results-table">
           <div className="results-head"><span>Question</span><span>Type</span><span>Difficulty</span><span>Points</span></div>
           {questions.map((q) => (
-            <div className="results-row" key={q.id}>
+            <a className="results-row question-link" href={`/question-bank/${q.id}`} key={q.id}>
               <strong>{q.prompt}</strong>
               <span>{q.type.replaceAll("_", " ")}</span>
               <span className={`diff-${q.difficulty.toLowerCase()}`}>{q.difficulty}</span>
               <span>{q.points}</span>
-            </div>
+            </a>
           ))}
         </section>
       )}
