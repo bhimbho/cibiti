@@ -54,3 +54,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   return NextResponse.json({ question: updated });
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "INSTRUCTOR" && session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Only instructors can delete questions." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const existing = await prisma.question.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "Question not found." }, { status: 404 });
+  if (session.user.role !== "ADMIN" && existing.createdById !== session.user.id) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  await prisma.question.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}
