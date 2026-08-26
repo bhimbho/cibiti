@@ -40,7 +40,7 @@ export default function SignInPage() {
           {error && <p className="auth-error" role="alert">{error}</p>}
           <button className="primary-button auth-submit" type="submit" disabled={pending}>{pending ? "Signing in..." : "Sign in"}<span>-&gt;</span></button>
         </form>
-        <p className="auth-footer">New to Cibiti? <a href="#register">Create a student account</a></p>
+        <p className="auth-footer">New to Cibiti? <a href="/register">Create a student account</a></p>
       </section>
     </main>
   );

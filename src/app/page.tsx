@@ -15,7 +15,7 @@ export default function Home() {
           <a className="nav-item" href="/exams/demo/take"><span className="nav-icon">T</span>Take exam</a>
         </nav>
         <div className="sidebar-bottom">
-          <a className="nav-item" href="#help"><span className="nav-icon">?</span>Help center</a>
+          <a className="nav-item" href="/sign-in"><span className="nav-icon">?</span>Sign in</a>
           <div className="profile"><div className="avatar">AO</div><div><strong>Alex Okafor</strong><span>Student account</span></div><span className="more">...</span></div>
         </div>
       </aside>
