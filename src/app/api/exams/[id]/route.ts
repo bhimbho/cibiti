@@ -56,3 +56,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const updated = await prisma.exam.update({ where: { id }, data: parsed.data });
   return NextResponse.json({ exam: updated });
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "INSTRUCTOR" && session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Only instructors can delete exams." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const existing = await prisma.exam.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "Exam not found." }, { status: 404 });
+  if (session.user.role !== "ADMIN" && existing.authorId !== session.user.id) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  await prisma.exam.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}

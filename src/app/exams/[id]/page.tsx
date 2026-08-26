@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 type Question = { id: string; type: string; prompt: string; difficulty: string; points: number };
 type Exam = {
@@ -11,6 +11,7 @@ type Exam = {
 
 export default function ExamDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [exam, setExam] = useState<Exam | null>(null);
   const [bank, setBank] = useState<Question[]>([]);
   const [message, setMessage] = useState("");
@@ -43,6 +44,12 @@ export default function ExamDetailPage() {
     if (res.ok) load();
   }
 
+  async function remove() {
+    if (!confirm("Delete this exam? This cannot be undone.")) return;
+    const res = await fetch(`/api/exams/${params.id}`, { method: "DELETE" });
+    if (res.ok) router.push("/exams");
+  }
+
   if (loading) return <main className="authoring-page"><p className="take-loading">Loading exam...</p></main>;
 
   if (!exam) return <main className="authoring-page"><p className="take-loading">Exam not found.</p></main>;
@@ -52,7 +59,7 @@ export default function ExamDetailPage() {
 
   return (
     <main className="authoring-page">
-      <div className="authoring-header"><div><a className="back-link" href="/exams">&lt;- Back to exams</a><p className="eyebrow">ASSESSMENT STUDIO</p><h1>{exam.title}</h1><p>{exam.description ?? "No description provided."}</p></div><div className="exam-detail-actions"><span className={`status-pill ${exam.status.toLowerCase()}`}>{exam.status}</span><a className="secondary-button" href={`/exams/${exam.id}/edit`}>Edit</a>{exam.adaptive && <a className="secondary-button" href={`/exams/${exam.id}/adaptive`}>Preview adaptive</a>}{exam.status !== "PUBLISHED" && <button className="primary-button" onClick={publish}>Publish<span>-&gt;</span></button>}</div></div>
+      <div className="authoring-header"><div><a className="back-link" href="/exams">&lt;- Back to exams</a><p className="eyebrow">ASSESSMENT STUDIO</p><h1>{exam.title}</h1><p>{exam.description ?? "No description provided."}</p></div><div className="exam-detail-actions"><span className={`status-pill ${exam.status.toLowerCase()}`}>{exam.status}</span><a className="secondary-button" href={`/exams/${exam.id}/edit`}>Edit</a>{exam.adaptive && <a className="secondary-button" href={`/exams/${exam.id}/adaptive`}>Preview adaptive</a>}{exam.status !== "PUBLISHED" && <button className="primary-button" onClick={publish}>Publish<span>-&gt;</span></button>}<button className="outline-button danger-button" onClick={remove}>Delete</button></div></div>
       {message && <p className="form-message" role="status">{message}</p>}
       <section className="authoring-layout">
         <div className="question-form">
