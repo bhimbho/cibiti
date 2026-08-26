@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cibiti-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cibiti
+      POSTGRES_PASSWORD: cibiti
+      POSTGRES_DB: cibiti
+    ports:
+      - "5432:5432"
+    volumes:
+      - cibiti-pgdata:/var/lib/postgresql/data
+
+volumes:
+  cibiti-pgdata:
