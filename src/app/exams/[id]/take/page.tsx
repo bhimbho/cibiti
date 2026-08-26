@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { useExamLockdown } from "@/lib/use-exam-lockdown";
 
 type Question = { questionId: string; type: string; prompt: string; options?: string[]; points: number };
 type Result = { score: number; maxScore: number; pct: number; passed: boolean };
@@ -14,6 +15,8 @@ export default function TakeExamPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [warning, setWarning] = useState("");
+  const { fullscreen, enterFullscreen } = useExamLockdown((reason) => setWarning(reason));
 
   useEffect(() => {
     (async () => {
@@ -64,8 +67,17 @@ export default function TakeExamPage() {
     <main className="take-page">
       <header className="take-topbar"><a className="back-link" href="/">&lt;- Exit</a><strong>Assessment in progress</strong><span>{answeredCount} / {questions.length} answered</span></header>
       {error && <p className="take-error" role="alert">{error}</p>}
+      {warning && <p className="take-warning" role="alert">{warning} — this is being recorded.</p>}
       {!attemptId && !error && <p className="take-loading">Preparing your assessment...</p>}
-      {attemptId && (
+      {attemptId && !fullscreen && (
+        <section className="lockdown-gate">
+          <div className="aside-symbol">!</div>
+          <h2>Secure exam mode</h2>
+          <p>This assessment is monitored. Enter fullscreen to begin. Leaving the exam window will be recorded.</p>
+          <button className="primary-button" onClick={enterFullscreen}>Enter fullscreen<span>-&gt;</span></button>
+        </section>
+      )}
+      {attemptId && fullscreen && (
         <section className="take-body">
           {questions.map((q, index) => (
             <article className="take-question" key={q.questionId}>
