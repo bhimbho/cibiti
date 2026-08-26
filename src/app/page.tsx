@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SignOutButton } from "@/components/sign-out-button";
 
 type Exam = { id: string; title: string; questionCount: number; timeLimitMin: number | null };
 type Attempt = { id: string; title: string; score: number | null; maxScore: number | null; submittedAt: string | null };
@@ -36,7 +37,7 @@ export default function Home() {
           {!isStudent && <a className="nav-item" href="/analytics"><span className="nav-icon">%</span>Analytics</a>}
         </nav>
         <div className="sidebar-bottom">
-          <a className="nav-item" href="/sign-in"><span className="nav-icon">?</span>Sign in</a>
+          <SignOutButton />
           <div className="profile"><div className="avatar">{(data?.name ?? "U").slice(0, 2).toUpperCase()}</div><div><strong>{data?.name ?? "Guest"}</strong><span>{isStudent ? "Student account" : "Instructor account"}</span></div><span className="more">...</span></div>
         </div>
       </aside>

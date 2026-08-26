@@ -14,7 +14,7 @@ button { font: inherit; }
 .workspace-label { padding: 0 14px 15px; }
 .nav-list { display: grid; gap: 6px; }
 .nav-item { align-items: center; border-radius: 7px; color: #a9c2bd; display: flex; font-size: 14px; gap: 13px; padding: 11px 14px; }
-.nav-item:hover, .nav-item.active { background: #285451; color: white; }
+.nav-item:hover, .nav-item.active { background: #285451; color: white; }.signout-button { background: none; border: 0; cursor: pointer; font: inherit; text-align: left; width: 100%; }
 .nav-icon { align-items: center; color: #7fa39c; display: flex; font-weight: 700; justify-content: center; width: 15px; }
 .nav-item.active .nav-icon { color: #f1a181; }
 .sidebar-bottom { margin-top: auto; }
