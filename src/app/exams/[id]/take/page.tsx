@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useExamLockdown } from "@/lib/use-exam-lockdown";
+import { useCountdown, formatTime } from "@/lib/use-countdown";
 
 type Question = { questionId: string; type: string; prompt: string; options?: string[]; points: number };
 type Result = { score: number; maxScore: number; pct: number; passed: boolean };
@@ -16,7 +17,26 @@ export default function TakeExamPage() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [warning, setWarning] = useState("");
+  const [timeLimitSec, setTimeLimitSec] = useState<number | null>(null);
   const { fullscreen, enterFullscreen } = useExamLockdown((reason) => setWarning(reason));
+
+  const submitRef = useRef<() => void>(() => {});
+  submitRef.current = async () => {
+    if (!attemptId) return;
+    setPending(true);
+    setError("");
+    const res = await fetch(`/api/attempts/${attemptId}/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    });
+    const data = await res.json();
+    setPending(false);
+    if (!res.ok) { setError(data.error ?? "Unable to submit."); return; }
+    setResult(data.result);
+  };
+
+  const remaining = useCountdown(timeLimitSec, () => submitRef.current());
 
   useEffect(() => {
     (async () => {
@@ -29,6 +49,7 @@ export default function TakeExamPage() {
       if (!res.ok) { setError(data.error ?? "Unable to start the exam."); return; }
       setAttemptId(data.attempt.id);
       setQuestions(data.questions);
+      if (data.attempt.timeLimitMin) setTimeLimitSec(data.attempt.timeLimitMin * 60);
     })();
   }, [params.id]);
 
@@ -65,7 +86,7 @@ export default function TakeExamPage() {
 
   return (
     <main className="take-page">
-      <header className="take-topbar"><a className="back-link" href="/">&lt;- Exit</a><strong>Assessment in progress</strong><span>{answeredCount} / {questions.length} answered</span></header>
+      <header className="take-topbar"><a className="back-link" href="/">&lt;- Exit</a><strong>Assessment in progress</strong><div className="take-timer"><span>{answeredCount} / {questions.length} answered</span>{remaining != null && <strong className={remaining <= 60 ? "timer-low" : ""}>{formatTime(remaining)}</strong>}</div></header>
       {error && <p className="take-error" role="alert">{error}</p>}
       {warning && <p className="take-warning" role="alert">{warning} — this is being recorded.</p>}
       {!attemptId && !error && <p className="take-loading">Preparing your assessment...</p>}
