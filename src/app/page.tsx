@@ -8,6 +8,7 @@ export default function Home() {
           <a className="nav-item active" href="#overview"><span className="nav-icon">+</span>Overview</a>
           <a className="nav-item" href="#exams"><span className="nav-icon">[]</span>My exams</a>
           <a className="nav-item" href="#results"><span className="nav-icon">/</span>Results</a>
+          <a className="nav-item" href="/exams"><span className="nav-icon">[]</span>My exams</a>
           <a className="nav-item" href="/question-bank"><span className="nav-icon">*</span>Question bank</a>
           <a className="nav-item" href="/exams/new"><span className="nav-icon">E</span>Create exam</a>
           <a className="nav-item" href="/results"><span className="nav-icon">/</span>Results</a>
