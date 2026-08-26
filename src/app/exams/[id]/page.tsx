@@ -52,7 +52,7 @@ export default function ExamDetailPage() {
 
   return (
     <main className="authoring-page">
-      <div className="authoring-header"><div><a className="back-link" href="/exams">&lt;- Back to exams</a><p className="eyebrow">ASSESSMENT STUDIO</p><h1>{exam.title}</h1><p>{exam.description ?? "No description provided."}</p></div><div className="exam-detail-actions"><span className={`status-pill ${exam.status.toLowerCase()}`}>{exam.status}</span>{exam.adaptive && <a className="secondary-button" href={`/exams/${exam.id}/adaptive`}>Preview adaptive</a>}{exam.status !== "PUBLISHED" && <button className="primary-button" onClick={publish}>Publish<span>-&gt;</span></button>}</div></div>
+      <div className="authoring-header"><div><a className="back-link" href="/exams">&lt;- Back to exams</a><p className="eyebrow">ASSESSMENT STUDIO</p><h1>{exam.title}</h1><p>{exam.description ?? "No description provided."}</p></div><div className="exam-detail-actions"><span className={`status-pill ${exam.status.toLowerCase()}`}>{exam.status}</span><a className="secondary-button" href={`/exams/${exam.id}/edit`}>Edit</a>{exam.adaptive && <a className="secondary-button" href={`/exams/${exam.id}/adaptive`}>Preview adaptive</a>}{exam.status !== "PUBLISHED" && <button className="primary-button" onClick={publish}>Publish<span>-&gt;</span></button>}</div></div>
       {message && <p className="form-message" role="status">{message}</p>}
       <section className="authoring-layout">
         <div className="question-form">
