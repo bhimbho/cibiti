@@ -37,12 +37,12 @@ export default function ResultsPage() {
             const pct = attempt.maxScore ? Math.round(((attempt.score ?? 0) / attempt.maxScore) * 100) : 0;
             const passed = pct >= attempt.exam.passMarkPct;
             return (
-              <div className="results-row" key={attempt.id}>
+              <a className="results-row" href={`/attempts/${attempt.id}`} key={attempt.id}>
                 <strong>{attempt.exam.title}</strong>
                 <span>{attempt.user ? (attempt.user.name ?? attempt.user.email) : "You"}</span>
                 <span className={passed ? "score-pass" : "score-fail"}>{attempt.score ?? "—"} / {attempt.maxScore ?? "—"} <em>({pct}%)</em></span>
                 <span className={`status-pill ${attempt.status.toLowerCase()}`}>{attempt.status.replaceAll("_", " ")}</span>
-              </div>
+              </a>
             );
           })}
         </section>
