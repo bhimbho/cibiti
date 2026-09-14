@@ -8,9 +8,17 @@ export async function GET() {
 
   const isStudent = session.user.role === "STUDENT";
 
-  const [publishedExams, recentAttempts, completedCount, avgScore] = await Promise.all([
+  // Student exam scope = courses they are enrolled in
+  const studentCourseIds = isStudent
+    ? (await prisma.enrollment.findMany({
+        where: { userId: session.user.id },
+        select: { courseId: true },
+      })).map((e) => e.courseId)
+    : [];
+
+  const [publishedExams, recentAttempts, completedCount, avgScore, enrolledCourses] = await Promise.all([
     prisma.exam.findMany({
-      where: isStudent ? { status: "PUBLISHED" } : { authorId: session.user.id },
+      where: isStudent ? { status: "PUBLISHED", courseId: { in: studentCourseIds } } : { authorId: session.user.id },
       include: { _count: { select: { items: true } } },
       orderBy: { updatedAt: "desc" },
       take: 5,
@@ -23,11 +31,13 @@ export async function GET() {
     }),
     prisma.attempt.count({ where: isStudent ? { userId: session.user.id, status: "GRADED" } : undefined }),
     prisma.attempt.aggregate({ where: isStudent ? { userId: session.user.id, status: "GRADED" } : undefined, _avg: { score: true } }),
+    prisma.enrollment.count({ where: isStudent ? { userId: session.user.id } : undefined }),
   ]);
 
   return NextResponse.json({
     role: session.user.role,
     name: session.user.name,
+    enrolledCourses,
     exams: publishedExams.map((e) => ({ id: e.id, title: e.title, questionCount: e._count.items, timeLimitMin: e.timeLimitMin })),
     recentAttempts: recentAttempts.map((a) => ({ id: a.id, title: a.exam.title, score: a.score, maxScore: a.maxScore, submittedAt: a.submittedAt })),
     completedCount,

@@ -56,12 +56,22 @@ model User {
   name         String?
   passwordHash String
   role         Role     @default(STUDENT)
+  
+  // Academic Profiles
+  studentId    String?  // Matric Number
+  instructorId String? // Staff ID
+  departmentId String?
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   attempts         Attempt[]
   exams            Exam[]    @relation("ExamAuthor")
   authoredQuestions Question[]
+  enrollments      Enrollment[]
+  department       Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("user")
 }
 
 model Tag {
@@ -69,7 +79,24 @@ model Tag {
   name      String   @unique
   createdAt DateTime @default(now())
 
-  questions Question[]
+  questions QuestionTag[]
+
+  @@map("tag")
+}
+
+model QuestionTag {
+  id         String   @id @default(cuid())
+  questionId String
+  tagId      String
+  assignedAt DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id])
+  tag      Tag      @relation(fields: [tagId], references: [id])
+
+  @@unique([questionId, tagId])
+  @@index([tagId])
+
+  @@map("question_tag")
 }
 
 model Question {
@@ -87,11 +114,13 @@ model Question {
   updatedAt   DateTime     @updatedAt
 
   createdBy User       @relation(fields: [createdById], references: [id])
-  tags      Tag[]
+  tags      QuestionTag[]
   examItems ExamQuestion[]
   answers   AttemptAnswer[]
 
   @@index([createdById])
+
+  @@map("question")
 }
 
 model Exam {
@@ -99,6 +128,11 @@ model Exam {
   title       String
   description String?
   status      ExamStatus @default(DRAFT)
+  
+  // Academic Linking
+  courseId    String?
+  departmentId String?
+
   // Exam settings
   timeLimitMin Int?      // null = untimed
   shuffleQuestions Boolean @default(false)
@@ -113,8 +147,14 @@ model Exam {
   author      User           @relation("ExamAuthor", fields: [authorId], references: [id])
   items       ExamQuestion[]
   attempts    Attempt[]
+  course      Course?        @relation(fields: [courseId], references: [id])
+  department  Department?    @relation(fields: [departmentId], references: [id])
 
   @@index([authorId])
+  @@index([courseId])
+  @@index([departmentId])
+
+  @@map("exam")
 }
 
 model ExamQuestion {
@@ -129,6 +169,8 @@ model ExamQuestion {
 
   @@unique([examId, questionId])
   @@index([questionId])
+
+  @@map("exam_question")
 }
 
 model Attempt {
@@ -150,6 +192,8 @@ model Attempt {
   @@unique([examId, userId, startedAt])
   @@index([userId])
   @@index([examId])
+
+  @@map("attempt")
 }
 
 model AttemptAnswer {
@@ -167,4 +211,52 @@ model AttemptAnswer {
 
   @@unique([attemptId, questionId])
   @@index([questionId])
+
+  @@map("attempt_answer")
+}
+
+model Department {
+  id    String @id @default(cuid())
+  name  String @unique
+  code  String @unique // e.g., CS, ME, EE
+  
+  users User[]
+  exams Exam[]
+  courses Course[]
+
+  @@map("department")
+}
+
+model Course {
+  id           String @id @default(cuid())
+  code         String @unique // e.g., CS101
+  title        String
+  credits      Int    @default(3)
+  departmentId  String?
+  
+  department   Department? @relation(fields: [departmentId], references: [id])
+  exams        Exam[]
+  enrollments  Enrollment[]
+
+  @@index([departmentId])
+  @@map("course")
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  role      EnrollmentRole @default(STUDENT) // STUDENT or INSTRUCTOR
+  enrolledAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+  @@map("enrollment")
+}
+
+enum EnrollmentRole {
+  STUDENT
+  INSTRUCTOR
 }

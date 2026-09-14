@@ -34,12 +34,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.role = user.role;
+      if (user) {
+        token.role = user.role;
+        token.id = user.id;
+      } else if (token.id && !token.role) {
+        // refresh from DB if token lacks role (e.g. first login)
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub ?? "";
+        let id = token.id as string | undefined;
+        if (!id) {
+          // Fallback: resolve the real user id from the email to avoid stale/invalid
+          // JWT subjects that break foreign-key relations like exam_authorId_fkey.
+          const real = await prisma.user.findUnique({
+            where: { email: (session.user.email ?? "").toLowerCase() },
+            select: { id: true },
+          });
+          id = real?.id ?? "";
+        }
+        session.user.id = id;
         session.user.role = token.role;
       }
       return session;

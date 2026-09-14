@@ -15,7 +15,51 @@ async function main() {
   const student = await prisma.user.upsert({
     where: { email: "student@cibiti.dev" },
     update: {},
-    create: { email: "student@cibiti.dev", name: "Demo Student", passwordHash, role: "STUDENT" },
+    create: { email: "student@cibiti.dev", name: "Demo Student", passwordHash, role: "STUDENT", studentId: "STU/2024/001" },
+  });
+
+  const departments = [
+    { code: "CS", name: "Computer Science" },
+    { code: "ME", name: "Mechanical Engineering" },
+    { code: "EE", name: "Electrical Engineering" },
+    { code: "BIO", name: "Biological Sciences" },
+    { code: "ACC", name: "Accounting & Finance" },
+    { code: "LAW", name: "Law" },
+  ];
+
+  const createdDepartments = [];
+  for (const d of departments) {
+    const dep = await prisma.department.upsert({
+      where: { code: d.code },
+      update: {},
+      create: d,
+    });
+    createdDepartments.push(dep);
+  }
+
+  const csDept = createdDepartments.find((d) => d.code === "CS");
+
+  const course = await prisma.course.upsert({
+    where: { code: "CS101" },
+    update: {},
+    create: {
+      code: "CS101",
+      title: "Introduction to Computer Science",
+      credits: 3,
+      departmentId: csDept?.id,
+    },
+  });
+
+  await prisma.enrollment.upsert({
+    where: { userId_courseId: { userId: student.id, courseId: course.id } },
+    update: {},
+    create: { userId: student.id, courseId: course.id, role: "STUDENT" },
+  });
+
+  await prisma.enrollment.upsert({
+    where: { userId_courseId: { userId: instructor.id, courseId: course.id } },
+    update: {},
+    create: { userId: instructor.id, courseId: course.id, role: "INSTRUCTOR" },
   });
 
   const q1 = await prisma.question.create({
@@ -72,9 +116,17 @@ async function main() {
     },
   });
 
+  // Attach the sample exam to this course
+  await prisma.exam.update({
+    where: { id: exam.id },
+    data: { courseId: course.id },
+  });
+
   console.log("Seeded demo data:");
   console.log(`  Instructor: instructor@cibiti.dev / password123`);
   console.log(`  Student:    student@cibiti.dev / password123`);
+  console.log(`  Course:     ${course.title} (${course.code})`);
+  console.log(`  Departments: ${createdDepartments.length} created (${csDept?.name})`);
   console.log(`  Exam:       ${exam.title} (${exam.id})`);
 }
 

@@ -10,9 +10,10 @@ export default function NewQuestionPage() {
 
   async function createQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formEl = event.currentTarget; // capture before await (currentTarget is nulled after)
     setPending(true);
     setMessage("");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formEl);
     const result = await fetch("/api/questions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -27,7 +28,7 @@ export default function NewQuestionPage() {
     });
     setPending(false);
     setMessage(result.ok ? "Question saved to the bank." : "Unable to save question. Sign in as an instructor first.");
-    if (result.ok) event.currentTarget.reset();
+    if (result.ok) formEl.reset();
   }
 
   return (
