@@ -3,6 +3,16 @@
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "@/components/sign-out-button";
 import { useEffect, useState } from "react";
+import {
+  LayoutDashboard,
+  BookOpen,
+  ClipboardList,
+  BarChart3,
+  GraduationCap,
+  Building2,
+  Database,
+  PieChart,
+} from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -32,33 +42,30 @@ export function Sidebar() {
       <div className="workspace-label">MY WORKSPACE</div>
       <nav className="nav-list" aria-label="Main navigation">
         <a className={`nav-item ${pathname === "/" ? "active" : ""}`} href="/">
-          <span className="nav-icon">+</span>Overview
+          <LayoutDashboard className="nav-icon" size={15} strokeWidth={2} />Overview
         </a>
         <a className={`nav-item ${pathname.startsWith("/courses") ? "active" : ""}`} href="/courses">
-          <span className="nav-icon">◎</span>Courses
+          <BookOpen className="nav-icon" size={15} strokeWidth={2} />Courses
         </a>
         <a className={`nav-item ${pathname.startsWith("/exams") ? "active" : ""}`} href="/exams">
-          <span className="nav-icon">[]</span>My exams
+          <ClipboardList className="nav-icon" size={15} strokeWidth={2} />My exams
         </a>
         <a className={`nav-item ${pathname.startsWith("/results") ? "active" : ""}`} href="/results">
-          <span className="nav-icon">/</span>Results
+          <BarChart3 className="nav-icon" size={15} strokeWidth={2} />Results
         </a>
         {!isStudent && (
           <>
             <a className={`nav-item ${pathname.startsWith("/students") ? "active" : ""}`} href="/students">
-              <span className="nav-icon">§</span>Students
+              <GraduationCap className="nav-icon" size={15} strokeWidth={2} />Students
             </a>
             <a className={`nav-item ${pathname.startsWith("/departments") ? "active" : ""}`} href="/departments">
-              <span className="nav-icon">◈</span>Departments
+              <Building2 className="nav-icon" size={15} strokeWidth={2} />Departments
             </a>
             <a className={`nav-item ${pathname.startsWith("/question-bank") ? "active" : ""}`} href="/question-bank">
-              <span className="nav-icon">*</span>Question bank
-            </a>
-            <a className={`nav-item ${pathname === "/exams/new" ? "active" : ""}`} href="/exams/new">
-              <span className="nav-icon">E</span>Create exam
+              <Database className="nav-icon" size={15} strokeWidth={2} />Question bank
             </a>
             <a className={`nav-item ${pathname.startsWith("/analytics") ? "active" : ""}`} href="/analytics">
-              <span className="nav-icon">%</span>Analytics
+              <PieChart className="nav-icon" size={15} strokeWidth={2} />Analytics
             </a>
           </>
         )}

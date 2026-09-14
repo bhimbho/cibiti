@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconButton } from "@/components/icon-button";
+import { Eye } from "lucide-react";
 
 type Attempt = {
   id: string;
@@ -32,17 +34,18 @@ export default function ResultsPage() {
       {!loading && attempts.length === 0 && <p className="take-loading">No results yet. Complete an assessment to see your score here.</p>}
       {!loading && attempts.length > 0 && (
         <section className="results-table">
-          <div className="results-head"><span>Assessment</span><span>Student</span><span>Score</span><span>Status</span></div>
+          <div className="results-head"><span>Assessment</span><span>Student</span><span>Score</span><span>Status</span><span></span></div>
           {attempts.map((attempt) => {
             const pct = attempt.maxScore ? Math.round(((attempt.score ?? 0) / attempt.maxScore) * 100) : 0;
             const passed = pct >= attempt.exam.passMarkPct;
             return (
-              <a className="results-row" href={`/attempts/${attempt.id}`} key={attempt.id}>
+              <div className="results-row" key={attempt.id}>
                 <strong>{attempt.exam.title}</strong>
                 <span>{attempt.user ? (attempt.user.name ?? attempt.user.email) : "You"}</span>
                 <span className={passed ? "score-pass" : "score-fail"}>{attempt.score ?? "—"} / {attempt.maxScore ?? "—"} <em>({pct}%)</em></span>
-                <span className={`status-pill ${attempt.status.toLowerCase()}`}>{attempt.status.replaceAll("_", " ")}</span>
-              </a>
+                <span><span className={`status-pill ${attempt.status.toLowerCase()}`}>{attempt.status.replaceAll("_", " ")}</span></span>
+                <span className="table-actions"><IconButton icon={Eye} label="View result" href={`/attempts/${attempt.id}`} /></span>
+              </div>
             );
           })}
         </section>

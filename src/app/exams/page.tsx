@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconButton } from "@/components/icon-button";
+import { Settings, ClipboardCheck } from "lucide-react";
 
 type Exam = {
   id: string;
@@ -32,19 +34,23 @@ export default function ExamsPage() {
       {loading && <p className="take-loading">Loading exams...</p>}
       {!loading && exams.length === 0 && <p className="take-loading">No exams yet. Create your first assessment to get started.</p>}
       {!loading && exams.length > 0 && (
-        <section className="exam-list">
+        <section className="data-table">
+          <div className="data-row data-head"><span>Exam</span><span>Status</span><span>Questions</span><span>Limit</span><span>Pass</span><span>Attempts</span><span></span></div>
           {exams.map((exam) => (
-            <article className="exam-card" key={exam.id}>
-              <div className="exam-card-head"><span className={`status-pill ${exam.status.toLowerCase()}`}>{exam.status}</span><span className="exam-card-count">{exam._count.items} questions</span></div>
-              <h2>{exam.title}</h2>
-              <p>{exam.description ?? "No description provided."}</p>
-              <div className="exam-card-meta"><span>{exam.timeLimitMin ? `${exam.timeLimitMin} min` : "Untimed"}</span><span>Pass: {exam.passMarkPct}%</span><span>{exam.maxAttempts} attempt{exam.maxAttempts > 1 ? "s" : ""}</span></div>
-              <div className="exam-card-actions">
-                <a className="secondary-button" href={`/exams/${exam.id}`}>Manage</a>
-                {exam.status === "PUBLISHED" && <a className="secondary-button" href={`/exams/${exam.id}/take`}>Take exam</a>}
-                {exam.status !== "PUBLISHED" && <span className="draft-hint">Draft</span>}
-              </div>
-            </article>
+            <div className="data-row" key={exam.id}>
+              <strong className="data-title">{exam.title}<small>{exam.description ?? "No description provided."}</small></strong>
+              <span><span className={`status-pill ${exam.status.toLowerCase()}`}>{exam.status}</span></span>
+              <span>{exam._count.items}</span>
+              <span>{exam.timeLimitMin ? `${exam.timeLimitMin} min` : "Untimed"}</span>
+              <span>{exam.passMarkPct}%</span>
+              <span>{exam.maxAttempts}</span>
+              <span className="table-actions">
+                <IconButton icon={Settings} label="Manage exam" href={`/exams/${exam.id}`} />
+                {exam.status === "PUBLISHED" && (
+                  <IconButton icon={ClipboardCheck} label="Take exam" href={`/exams/${exam.id}/take`} />
+                )}
+              </span>
+            </div>
           ))}
         </section>
       )}

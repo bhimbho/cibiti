@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconButton } from "@/components/icon-button";
+import { Settings } from "lucide-react";
 
 type Course = {
   id: string;
@@ -53,20 +55,20 @@ export default function CoursesPage() {
         </p>
       )}
       {!loading && courses.length > 0 && (
-        <section className="exam-list">
+        <section className="data-table">
+          <div className="data-row data-head"><span>Course</span><span>Code</span><span>Department</span><span>Credits</span><span>Members</span><span>Exams</span><span></span></div>
           {courses.map((course) => (
-            <a className="exam-card course-card" href={`/courses/${course.id}`} key={course.id}>
-              <div className="exam-card-head">
-                <span className="status-pill graded">{course.code}</span>
-                <span className="exam-card-count">{course.credits} credits</span>
-              </div>
-              <h2>{course.title}</h2>
-              <p>{course.department?.name ?? "General subject"}</p>
-              <div className="exam-card-meta">
-                <span>{course._count.enrollments} member{course._count.enrollments === 1 ? "" : "s"}</span>
-                <span>{course._count.exams} exam{course._count.exams === 1 ? "" : "s"}</span>
-              </div>
-            </a>
+            <div className="data-row" key={course.id}>
+              <strong className="data-title">{course.title}</strong>
+              <span>{course.code}</span>
+              <span>{course.department?.name ?? "—"}</span>
+              <span>{course.credits}</span>
+              <span>{course._count.enrollments}</span>
+              <span>{course._count.exams}</span>
+              <span className="table-actions">
+                <IconButton icon={Settings} label="Manage course" href={`/courses/${course.id}`} />
+              </span>
+            </div>
           ))}
         </section>
       )}
