@@ -14,6 +14,9 @@ const navigation: (NavItem & { permission?: Permission[] })[] = [
   { href: "/results", label: "Results", icon: "results", permission: ["results:read", "attempt:take"] },
   { href: "/people", label: "People", icon: "people", permission: ["people:manage"] },
   { href: "/academics", label: "Academics", icon: "academics", permission: ["academics:manage"] },
+  { href: "/invigilation", label: "Invigilation", icon: "invigilation", permission: ["invigilate"] },
+  { href: "/settings", label: "Settings", icon: "settings", permission: ["flags:manage"] },
+  { href: "/settings/audit", label: "Audit log", icon: "settings", permission: ["audit:read"] },
 ];
 
 export function navFor(permissions: Permission[]): NavItem[] {

@@ -30,6 +30,8 @@ const eventLabels: Record<string, string> = {
   "print.attempted": "Tried to print",
   "device.conflict": "Opened on another computer",
   "device.released": "Invigilator moved the exam to another computer",
+  "time.extended": "Invigilator added time",
+  "attempt.force-submitted": "Invigilator submitted the exam",
 };
 
 export default async function AttemptReportPage({ params }: { params: Promise<{ id: string }> }) {

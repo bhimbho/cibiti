@@ -261,6 +261,75 @@ test("exam officer sets up academic structure and registers a candidate on a cou
   await expect(page.locator(".member-row", { hasText: "Demo Student" })).toBeVisible();
 });
 
+test("invigilator adds time and submits a live attempt", async ({ page, browser }) => {
+  // A fresh candidate so the one-attempt CSC101 exam is always available.
+  const stamp = Date.now();
+  await signIn(page, "officer@cibiti.dev");
+  await page.goto("/people/new");
+  await page.getByLabel("Full name").fill("Live Candidate");
+  await page.getByLabel("Matric / registration number").fill(`LIVE/${stamp}`);
+  // The label also carries the hint "Leave blank to generate one".
+  await page.getByLabel(/^Password/).fill("live12345");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("ACCOUNT CREATED")).toBeVisible();
+  await page.goto("/academics/courses");
+  await page.getByRole("textbox", { name: "Search code or title" }).fill("CSC101");
+  await page.getByRole("link", { name: "CSC101", exact: true }).click();
+  await page.getByLabel("Register by matric number").fill(`LIVE/${stamp}`);
+  await page.getByRole("button", { name: "Register candidates" }).click();
+  await expect(page.getByText("Registered 1 candidate.")).toBeVisible();
+
+  const candidateContext = await browser.newContext();
+  const candidatePage = await candidateContext.newPage();
+  await candidatePage.goto("/sign-in");
+  await candidatePage.getByLabel("Email or matric number").fill(`LIVE/${stamp}`);
+  await candidatePage.getByLabel("Password").fill("live12345");
+  await candidatePage.getByRole("button", { name: "Sign in" }).click();
+  await candidatePage.locator(".exam-row", { hasText: "CSC101 Continuous Assessment 1" }).getByRole("link", { name: "Begin" }).click();
+  await candidatePage.getByRole("button", { name: "Start exam" }).click();
+  await expect(candidatePage.getByText(/Question 1 of \d+/)).toBeVisible();
+
+  const invigilatorContext = await browser.newContext();
+  const invigilator = await invigilatorContext.newPage();
+  await signIn(invigilator, "invigilator@cibiti.dev");
+  await invigilator.getByRole("link", { name: "Invigilation" }).click();
+  const row = invigilator.locator("tbody tr", { hasText: `LIVE/${stamp}` });
+  await expect(row).toBeVisible();
+
+  let prompts = 0;
+  invigilator.on("dialog", (dialog) => {
+    prompts++;
+    void dialog.accept(dialog.message().startsWith("Add how many") ? "10" : dialog.message().startsWith("Reason") ? "Power outage" : "Left the hall");
+  });
+  await row.getByRole("button", { name: "Add time for Live Candidate" }).click();
+  await expect(invigilator.getByText("Added 10 minutes for Live Candidate.")).toBeVisible();
+  await expect(row).toContainText("+10m");
+
+  await row.getByRole("button", { name: "Submit Live Candidate's exam now" }).click();
+  await expect(invigilator.getByText("Live Candidate's exam was submitted.")).toBeVisible();
+  await expect(row).toHaveCount(0);
+  expect(prompts).toBe(3);
+
+  await candidateContext.close();
+  await invigilatorContext.close();
+});
+
+test("administrator toggles a feature flag and it is audited", async ({ page }) => {
+  await signIn(page, "admin@cibiti.dev");
+  await page.getByRole("link", { name: "Settings" }).click();
+  page.on("dialog", (dialog) => void dialog.accept());
+
+  const toggle = page.getByRole("switch", { name: "AI assist (Claude)" });
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+
+  await page.getByRole("link", { name: "Audit log" }).first().click();
+  await expect(page.locator(".dt tbody tr", { hasText: "flag.set" }).first()).toBeVisible();
+});
+
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });
