@@ -74,4 +74,14 @@ export const multipleResponse = defineItemType({
       detail: { right, wrong, overLimit },
     };
   },
+
+  review(interaction, scoring, response) {
+    const chosen = new Set(response?.optionIds ?? []);
+    const correct = new Set(scoring.correctOptionIds);
+    return {
+      kind: "choice",
+      multiple: true,
+      options: interaction.options.map((o) => ({ id: o.id, text: o.text, chosen: chosen.has(o.id), correct: correct.has(o.id) })),
+    };
+  },
 });

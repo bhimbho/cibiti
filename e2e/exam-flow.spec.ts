@@ -141,6 +141,38 @@ test("exam officer builds and publishes an exam that candidates can see", async 
   await candidateContext.close();
 });
 
+test("staff open an attempt report with its integrity timeline", async ({ page }) => {
+  await signIn(page, "officer@cibiti.dev");
+  await page.getByRole("link", { name: "Results" }).click();
+  await expect(page).toHaveURL(/\/results$/);
+
+  await page.locator(".dt-menu summary", { hasText: "Exam" }).click();
+  await page.getByRole("checkbox", { name: "General Studies Practice Quiz" }).check();
+  await expect(page).toHaveURL(/exam=/);
+
+  const firstCandidate = page.locator(".dt tbody tr").first().locator("a.dt-link");
+  await expect(firstCandidate).toBeVisible();
+  await firstCandidate.click();
+
+  await expect(page).toHaveURL(/\/results\/[^/?]+$/);
+  // exact: Next's route announcer also contains "Attempt report".
+  await expect(page.getByText("ATTEMPT REPORT", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".timeline")).toContainText("Started the exam");
+  await expect(page.locator(".review-item").first()).toBeVisible();
+});
+
+test("candidate reviews their own released result", async ({ page }) => {
+  await signIn(page, candidate);
+  await page.getByRole("link", { name: "Results" }).click();
+  await expect(page.getByRole("heading", { name: "My results" })).toBeVisible();
+
+  await page.locator(".activity-item", { hasText: "General Studies Practice Quiz" }).first().getByRole("link").click();
+  await expect(page.getByText("YOUR RESULT")).toBeVisible();
+  // The practice quiz releases the full review, including correct answers.
+  await expect(page.locator(".review-item").first()).toBeVisible();
+  await expect(page.locator(".timeline")).toHaveCount(0);
+});
+
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });

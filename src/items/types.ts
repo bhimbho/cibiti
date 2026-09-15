@@ -7,6 +7,11 @@ export type ScoreContext = {
   negativeMarking: boolean;
 };
 
+/** How a delivered answer compares with the key, for result review screens. */
+export type ItemReview =
+  | { kind: "choice"; multiple: boolean; options: { id: string; text: string; chosen: boolean; correct: boolean }[] }
+  | { kind: "text"; given: string | null; accepted: string[] };
+
 export type ScoreResult = {
   points: number;
   maxPoints: number;
@@ -37,6 +42,7 @@ export type ItemTypeDefinition<Interaction, Scoring, Response, Layout> = {
   candidateView(interaction: Interaction, layout: Layout): unknown;
   isAnswered(response: Response | null): boolean;
   score(response: Response | null, scoring: Scoring, interaction: Interaction, context: ScoreContext): ScoreResult;
+  review(interaction: Interaction, scoring: Scoring, response: Response | null): ItemReview;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

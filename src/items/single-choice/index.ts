@@ -42,4 +42,12 @@ export const singleChoice = defineItemType({
     const points = isCorrect ? maxPoints : negativeMarking ? -maxPoints * scoring.penalty : 0;
     return { points: roundPoints(points), maxPoints, isCorrect, needsManualGrading: false };
   },
+
+  review(interaction, scoring, response) {
+    return {
+      kind: "choice",
+      multiple: false,
+      options: interaction.options.map((o) => ({ id: o.id, text: o.text, chosen: response?.optionId === o.id, correct: o.id === scoring.correctOptionId })),
+    };
+  },
 });

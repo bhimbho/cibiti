@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { candidateView, createLayout, isAnswered, parseAuthoredItem, scoreItem } from "./registry";
+import { candidateView, createLayout, isAnswered, parseAuthoredItem, reviewItem, scoreItem } from "./registry";
 import { levenshtein, orderOptions } from "./shared";
 
 const options = [
@@ -141,6 +141,31 @@ describe("multiple-response scoring", () => {
 
   it("validates that correct answers exist", () => {
     expect(parseAuthoredItem("multiple-response", interaction, { correctOptionIds: ["a", "x"] }).ok).toBe(false);
+  });
+});
+
+describe("reviewItem", () => {
+  it("marks the chosen and correct options for single choice", () => {
+    const review = reviewItem("single-choice", { interaction: { options }, scoring: { correctOptionId: "a" }, response: { optionId: "b" } });
+    expect(review).toEqual({
+      kind: "choice",
+      multiple: false,
+      options: [
+        { id: "a", text: "Abuja", chosen: false, correct: true },
+        { id: "b", text: "Lagos", chosen: true, correct: false },
+        { id: "c", text: "Kano", chosen: false, correct: false },
+        { id: "d", text: "None of the above", chosen: false, correct: false },
+      ],
+    });
+  });
+
+  it("handles unanswered multiple response", () => {
+    const review = reviewItem("multiple-response", { interaction: { options }, scoring: { correctOptionIds: ["a", "c"] }, response: null });
+    expect(review.kind === "choice" && review.options.filter((o) => o.chosen)).toEqual([]);
+  });
+
+  it("shows given and accepted text for short answer", () => {
+    expect(reviewItem("short-answer", { interaction: {}, scoring: { acceptedAnswers: ["osmosis"] }, response: { text: " diffusion " } })).toEqual({ kind: "text", given: "diffusion", accepted: ["osmosis"] });
   });
 });
 

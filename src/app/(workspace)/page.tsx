@@ -88,7 +88,11 @@ async function CandidateOverview({ actor }: { actor: Actor }) {
                 <h3>{attempt.examTitle}</h3>
                 <p>{attempt.submittedAt ? timeFormat.format(new Date(attempt.submittedAt)) : "—"}{attempt.status === AttemptStatus.SUBMITTED ? " · awaiting marking" : ""}</p>
               </div>
-              <strong className={attempt.passed === false ? "muted-score" : ""}>{attempt.percent !== null ? `${Math.round(attempt.percent)}%` : "Pending"}</strong>
+              {attempt.percent !== null ? (
+                <a className={`result-link ${attempt.passed === false ? "muted-score" : ""}`} href={`/results/${attempt.id}`}>{Math.round(attempt.percent)}%</a>
+              ) : (
+                <strong className="muted-score">Pending</strong>
+              )}
             </div>
           ))}
         </div>

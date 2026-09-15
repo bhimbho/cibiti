@@ -54,4 +54,8 @@ export const shortAnswer = defineItemType({
     if (scoring.manualReviewUnmatched) return { points: 0, maxPoints, isCorrect: null, needsManualGrading: true };
     return { points: 0, maxPoints, isCorrect: false, needsManualGrading: false };
   },
+
+  review(_interaction, scoring, response) {
+    return { kind: "text", given: response?.text.trim() || null, accepted: scoring.acceptedAnswers };
+  },
 });

@@ -48,4 +48,17 @@ export const trueFalse = defineItemType({
     const points = isCorrect ? maxPoints : negativeMarking ? -maxPoints * scoring.penalty : 0;
     return { points: roundPoints(points), maxPoints, isCorrect, needsManualGrading: false };
   },
+
+  review(interaction, scoring, response) {
+    return {
+      kind: "choice",
+      multiple: false,
+      options: (["true", "false"] as const).map((id) => ({
+        id,
+        text: id === "true" ? interaction.trueLabel : interaction.falseLabel,
+        chosen: response?.optionId === id,
+        correct: scoring.correct === id,
+      })),
+    };
+  },
 });

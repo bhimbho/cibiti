@@ -294,6 +294,36 @@ a.data-row .link-button { pointer-events: none; }
 .picker-foot .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 1000px) { .builder-layout { grid-template-columns: 1fr; } .checks-panel { position: static; } .form-row.four, .form-row.three { grid-template-columns: 1fr 1fr; } }
 
+/* ───────── Results ───────── */
+.status-pill.a-in_progress { background: #e8eef1; color: #4a6b7a; }
+.status-pill.a-submitted { background: #fdf3e3; color: #9a6a1f; }
+.status-pill.a-graded { background: #e1f0ed; color: var(--teal-dark); }
+.status-pill.a-voided { background: #eef0f2; color: #8a9995; }
+.results-list { margin-top: 32px; }
+.results-list .secondary-button { margin-left: auto; }
+.section-scores { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); margin-top: 28px; }
+.report-layout { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) 320px; }
+.review-item.pending { border-left-color: #e5b35b; }
+.review-item.pending .review-result { color: #9a6a1f; }
+.review-option.correct-answer { background: #f2f8f6; border-color: #9fcfc4; border-style: dashed; }
+.review-option em { color: var(--muted); }
+.review-head .take-hint { margin-left: 8px; }
+.review-score .draft-hint { display: block; margin-top: 10px; }
+.review-score button { border: 0; cursor: pointer; margin-top: 12px; }
+.timeline-panel { margin-top: 40px; position: sticky; top: 20px; }
+.timeline-panel .eyebrow { color: var(--teal); margin: 0 0 10px; }
+.timeline-panel .aside-line { border-top-color: var(--line); }
+.timeline-panel .aside-line span { color: var(--muted); }
+.timeline-panel .aside-line strong { color: var(--ink); }
+.timeline { border-left: 2px solid var(--line); display: grid; gap: 10px; list-style: none; margin: 14px 0 0; max-height: 60vh; overflow-y: auto; padding: 0 0 0 14px; }
+.timeline li { font-size: 12px; position: relative; }
+.timeline li::before { background: #b9c5c1; border-radius: 50%; content: ""; height: 8px; left: -19px; position: absolute; top: 4px; width: 8px; }
+.timeline li.sev-low::before { background: #e5b35b; }
+.timeline li.sev-medium::before { background: #e5795b; }
+.timeline li.sev-high::before { background: #a64e39; }
+.timeline time { color: var(--muted); display: block; font-size: 10px; }
+@media (max-width: 1000px) { .report-layout { grid-template-columns: 1fr; } .timeline-panel { margin-top: 0; position: static; } }
+
 /* ───────── Data table ───────── */
 .authoring-page.wide { max-width: 1320px; }
 .dt { margin-top: 32px; transition: opacity .15s; }

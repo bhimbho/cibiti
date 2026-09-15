@@ -1,4 +1,4 @@
-import type { AnyItemTypeDefinition, Random, ScoreContext, ScoreResult } from "./types";
+import type { AnyItemTypeDefinition, ItemReview, Random, ScoreContext, ScoreResult } from "./types";
 import { singleChoice } from "./single-choice";
 import { trueFalse } from "./true-false";
 import { multipleResponse } from "./multiple-response";
@@ -58,6 +58,15 @@ export function parseResponse(type: string, value: unknown): unknown | null {
 
 export function isAnswered(type: string, value: unknown): boolean {
   return getItemType(type).isAnswered(parseResponse(type, value));
+}
+
+export function reviewItem(type: string, input: { interaction: unknown; scoring: unknown; response: unknown }): ItemReview {
+  const definition = getItemType(type);
+  return definition.review(
+    definition.interactionSchema.parse(input.interaction),
+    definition.scoringSchema.parse(input.scoring),
+    parseResponse(type, input.response),
+  );
 }
 
 export function scoreItem(type: string, input: { interaction: unknown; scoring: unknown; response: unknown }, context: ScoreContext): ScoreResult {
