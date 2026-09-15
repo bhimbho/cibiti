@@ -53,7 +53,7 @@ The current app is about 4.2k lines. It has good bones: Next.js 16, Prisma/Postg
 | Concern | Choice | Why |
 |---|---|---|
 | Background jobs | **Redis + BullMQ** worker process | Imports, exports, PDF rendering, regrades, analytics recompute, and AI calls must not run in request handlers |
-| File/media storage | **S3-compatible**, **Garage** bundled by default on the LAN server (SeaweedFS as the alternative); R2/S3 only for the optional cloud hub | MinIO Community Edition was archived in 2026, so avoid it for new builds. Uploads use **presigned URLs** straight to storage |
+| File/media storage | **S3-compatible**, **Garage** bundled by default on the LAN server (SeaweedFS as the alternative); R2/S3 only for the optional cloud hub | MinIO Community Edition was archived in 2026, so avoid it for new builds. On a LAN, uploads and downloads **stream through the app** (one origin for browsers, a permission check on every read); presigned URLs are reserved for the optional cloud hub |
 | AI | **Claude** via `@anthropic-ai/sdk`, model **`claude-opus-5`** | Question generation from notes/PDFs, scanned past-question OCR, distractors, essay-grading suggestions, report summaries. Runs only in the worker and only when the server has internet (§5.4) |
 | Feature flags | DB-backed flags at org → exam level (simple table + typed helper) | Proctoring levels, AI, and experimental types ship dark and are toggled per org/exam without redeploying |
 | Image processing | `sharp` in worker | Resize, WebP/AVIF variants, strip EXIF, content hash for dedupe |
