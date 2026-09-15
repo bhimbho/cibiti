@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "phase-*"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cibiti
+          POSTGRES_PASSWORD: cibiti
+          POSTGRES_DB: cibiti
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cibiti" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+
+    env:
+      # Throwaway values for the CI environment only.
+      DATABASE_URL: postgresql://cibiti:cibiti@localhost:5432/cibiti?schema=public
+      AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      AUTH_URL: http://localhost:3000
+      REDIS_URL: redis://localhost:6379
+      STORAGE_ENDPOINT: http://localhost:3900
+      STORAGE_REGION: garage
+      STORAGE_BUCKET: cibiti
+      STORAGE_ACCESS_KEY: GK0123456789abcdef01234567
+      STORAGE_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      GARAGE_RPC_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      GARAGE_ADMIN_TOKEN: ci-admin-token
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Start object storage
+        run: |
+          docker run -d --name garage -p 3900:3900 \
+            -v "$PWD/infra/garage/garage.toml:/etc/garage.toml:ro" -v garagedata:/var/lib/garage \
+            -e GARAGE_RPC_SECRET -e GARAGE_ADMIN_TOKEN \
+            -e GARAGE_DEFAULT_ACCESS_KEY="$STORAGE_ACCESS_KEY" -e GARAGE_DEFAULT_SECRET_KEY="$STORAGE_SECRET_KEY" \
+            -e GARAGE_DEFAULT_BUCKET="$STORAGE_BUCKET" \
+            dxflrs/garage:v2.3.0 /garage server --single-node --default-bucket
+
+      - run: npm ci
+      - run: npx prisma db push
+      - run: npx next typegen
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Storage round-trip
+        run: npm run storage:check
+
+      - run: npm run db:seed
+      - run: npm run build
+
+      - name: Start app and worker
+        run: |
+          npm run start > app.log 2>&1 &
+          npm run worker > worker.log 2>&1 &
+          npx wait-on http://localhost:3000/api/health --timeout 60000
+
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - name: Upload logs and report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            app.log
+            worker.log
+            playwright-report/
+            test-results/
