@@ -5,6 +5,7 @@ import { shuffleInPlace } from "@/items/shared";
 import type { Actor } from "../authz";
 import { conflict, forbidden, HttpError, notFound, toJson } from "../http";
 import { effectiveIntegrityLevel } from "../flags";
+import { eligibleExamsWhere } from "../eligibility";
 import { scheduleAutoSubmit } from "../queue";
 import { computeDeadline, isPastDeadline, SUBMIT_GRACE_MS } from "./deadline";
 import { finalizeAttempt } from "./grading";
@@ -17,24 +18,9 @@ const deviceLocked = () =>
 
 // ─────────────── Eligibility ───────────────
 
-async function assertEligible(actor: Actor, exam: { id: string; courseId: string | null }) {
-  const assignments = await prisma.examAssignment.findMany({ where: { examId: exam.id } });
-
-  if (assignments.length === 0) {
-    if (!exam.courseId) return; // Open to every candidate in the organisation.
-    const enrolled = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: actor.userId, courseId: exam.courseId } } });
-    if (!enrolled) throw forbidden("You are not registered for this course.");
-    return;
-  }
-
-  if (assignments.some((a) => a.userId === actor.userId)) return;
-  const courseIds = assignments.flatMap((a) => (a.courseId ? [a.courseId] : []));
-  const groupIds = assignments.flatMap((a) => (a.groupId ? [a.groupId] : []));
-  const [enrolled, grouped] = await Promise.all([
-    courseIds.length ? prisma.enrollment.count({ where: { userId: actor.userId, courseId: { in: courseIds } } }) : 0,
-    groupIds.length ? prisma.groupMember.count({ where: { userId: actor.userId, groupId: { in: groupIds } } }) : 0,
-  ]);
-  if (!enrolled && !grouped) throw forbidden("This exam has not been assigned to you.");
+async function assertEligible(actor: Actor, examId: string) {
+  const eligible = await prisma.exam.count({ where: { id: examId, ...eligibleExamsWhere(actor.userId, actor.orgId) } });
+  if (!eligible) throw forbidden("This exam has not been assigned to you.");
 }
 
 async function resolveSession(examId: string, accessCode: string | undefined, ip: string | null, now: Date) {
@@ -119,7 +105,7 @@ export async function startOrResumeAttempt(actor: Actor, examId: string, client:
   const existing = await prisma.attempt.findFirst({ where: { examId, userId: actor.userId, status: AttemptStatus.IN_PROGRESS } });
   if (existing) return resumeAttempt(actor, existing.id, client);
 
-  await assertEligible(actor, exam);
+  await assertEligible(actor, exam.id);
   const session = await resolveSession(examId, accessCode, client.ip, now);
 
   const planned = await planItems(actor.orgId, exam.sections, exam.shuffleQuestions);

@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 export default function SignInPage() {
+  const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -13,34 +15,34 @@ export default function SignInPage() {
     setPending(true);
     const formData = new FormData(event.currentTarget);
     const result = await signIn("credentials", {
-      email: formData.get("email"),
+      identifier: formData.get("identifier"),
       password: formData.get("password"),
       redirect: false,
-    });
+    }).catch(() => ({ error: "network" }));
     setPending(false);
     if (result?.error) {
-      setError("The email or password is incorrect.");
+      setError(result.error === "network" ? "Cannot reach the server. Check the network and try again." : "Those sign-in details are not correct.");
       return;
     }
-    window.location.assign("/");
+    router.replace("/");
+    router.refresh();
   }
 
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <a className="auth-brand" href="/" aria-label="Back to Cibiti home"><span className="brand-mark">C</span><span>Cibiti</span></a>
-        <p className="eyebrow auth-eyebrow">STUDENT WORKSPACE</p>
+        <div className="auth-brand"><span className="brand-mark">C</span><span>Cibiti</span></div>
+        <p className="eyebrow auth-eyebrow">ASSESSMENT WORKSPACE</p>
         <h1>Welcome back.</h1>
-        <p className="auth-copy">Sign in to continue your assessment journey.</p>
+        <p className="auth-copy">Staff sign in with email. Candidates can use their matric or registration number.</p>
         <form onSubmit={handleSubmit} className="auth-form">
-          <label htmlFor="email">Email address</label>
-          <input id="email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
+          <label htmlFor="identifier">Email or matric number</label>
+          <input id="identifier" name="identifier" autoComplete="username" autoCapitalize="none" required placeholder="you@school.edu or CSC/2026/001" />
           <label htmlFor="password">Password</label>
-          <input id="password" name="password" type="password" autoComplete="current-password" required minLength={8} placeholder="At least 8 characters" />
+          <input id="password" name="password" type="password" autoComplete="current-password" required minLength={6} />
           {error && <p className="auth-error" role="alert">{error}</p>}
           <button className="primary-button auth-submit" type="submit" disabled={pending}>{pending ? "Signing in..." : "Sign in"}<span>-&gt;</span></button>
         </form>
-        <p className="auth-footer">New to Cibiti? <a href="/register">Create a student account</a></p>
       </section>
     </main>
   );

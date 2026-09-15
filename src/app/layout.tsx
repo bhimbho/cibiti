@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
 
+// next/font downloads fonts at build time and serves them locally, so pages work offline on a LAN.
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -15,23 +15,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Cibiti | Assessment workspace",
-  description: "A focused workspace for computer-based testing.",
+  description: "Computer-based testing for universities, CBT centres and schools.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <div className="app-shell">
-          <Sidebar />
-          <div className="page-wrap">
-            {children}
-          </div>
-        </div>
-      </body>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
