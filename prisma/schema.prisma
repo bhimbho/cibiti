@@ -1,5 +1,6 @@
-// Prisma schema for the CBT (Computer-Based Testing) system
-// Phase 1: Foundation — core models for users, questions, exams, and attempts
+// Cibiti v2 schema — see PLAN.md §3.
+// Principles: attempts pin immutable question versions, the server owns time and scoring,
+// and every privileged change is audited.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,23 +11,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------- Enums ----------
+// ─────────────────────────── Enums ───────────────────────────
 
-enum Role {
-  STUDENT
-  INSTRUCTOR
-  ADMIN
+enum OrgKind {
+  UNIVERSITY
+  CBT_CENTRE
+  SCHOOL
 }
 
-enum QuestionType {
-  MULTIPLE_CHOICE
-  MULTI_SELECT
-  TRUE_FALSE
-  FILL_BLANK
-  MATCHING
-  ORDERING
-  ESSAY
-  SHORT_ANSWER
+enum Role {
+  SUPER_ADMIN
+  ORG_ADMIN
+  EXAM_OFFICER
+  AUTHOR
+  REVIEWER
+  GRADER
+  INVIGILATOR
+  CANDIDATE
+}
+
+enum QuestionStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  RETIRED
 }
 
 enum Difficulty {
@@ -38,225 +46,816 @@ enum Difficulty {
 enum ExamStatus {
   DRAFT
   PUBLISHED
+  CLOSED
   ARCHIVED
 }
 
+enum NavigationMode {
+  FREE
+  LINEAR
+}
+
+enum ReleasePolicy {
+  IMMEDIATE
+  AFTER_CLOSE
+  MANUAL
+}
+
+enum ReviewDetail {
+  SCORE_ONLY
+  BREAKDOWN
+  FULL
+}
+
+// SUBMITTED = waiting for manual grading; GRADED = every item has a grade.
 enum AttemptStatus {
   IN_PROGRESS
   SUBMITTED
   GRADED
-  TIMED_OUT
+  VOIDED
 }
 
-// ---------- Models ----------
+enum SubmissionType {
+  CANDIDATE
+  TIME_EXPIRED
+  INVIGILATOR
+}
+
+enum GradeMethod {
+  AUTO
+  MANUAL
+  AI_SUGGESTED
+}
+
+enum EventSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+// ─────────────────────── Organisation & people ───────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  kind      OrgKind
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  memberships  Membership[]
+  sessions     AcademicSession[]
+  departments  Department[]
+  levels       Level[]
+  groups       CandidateGroup[]
+  courses      Course[]
+  venues       Venue[]
+  subjects     Subject[]
+  tags         Tag[]
+  assets       Asset[]
+  questions    Question[]
+  stimuli      Stimulus[]
+  exams        Exam[]
+  featureFlags FeatureFlag[]
+  auditLogs    AuditLog[]
+  jobs         Job[]
+
+  @@map("organization")
+}
 
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
+  orgId        String
+  name         String
+  // Staff sign in with email; candidates may sign in with a matric/registration number.
+  email        String?  @unique
+  regNumber    String?
   passwordHash String
-  role         Role     @default(STUDENT)
-  
-  // Academic Profiles
-  studentId    String?  // Matric Number
-  instructorId String? // Staff ID
+  isActive     Boolean  @default(true)
   departmentId String?
-  
+  levelId      String?
+  photoAssetId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  attempts         Attempt[]
-  exams            Exam[]    @relation("ExamAuthor")
-  authoredQuestions Question[]
-  enrollments      Enrollment[]
-  department       Department? @relation(fields: [departmentId], references: [id])
+  org          Organization    @relation(fields: [orgId], references: [id])
+  department   Department?     @relation(fields: [departmentId], references: [id])
+  level        Level?          @relation(fields: [levelId], references: [id])
+  photo        Asset?          @relation("UserPhoto", fields: [photoAssetId], references: [id])
+  memberships  Membership[]
+  enrollments  Enrollment[]
+  groupLinks   GroupMember[]
+  accommodations Accommodation[]
+  assignments  ExamAssignment[]
+  attempts     Attempt[]
+  authoredQuestions Question[]        @relation("QuestionAuthor")
+  authoredVersions  QuestionVersion[] @relation("VersionAuthor")
+  authoredExams     Exam[]            @relation("ExamAuthor")
+  uploadedAssets    Asset[]           @relation("AssetUploader")
+  grades       ItemGrade[]
+  auditLogs    AuditLog[]
+  jobs         Job[]
 
+  @@unique([orgId, regNumber])
+  @@index([orgId])
   @@map("user")
 }
 
-model Tag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-
-  questions QuestionTag[]
-
-  @@map("tag")
-}
-
-model QuestionTag {
-  id         String   @id @default(cuid())
-  questionId String
-  tagId      String
-  assignedAt DateTime @default(now())
-
-  question Question @relation(fields: [questionId], references: [id])
-  tag      Tag      @relation(fields: [tagId], references: [id])
-
-  @@unique([questionId, tagId])
-  @@index([tagId])
-
-  @@map("question_tag")
-}
-
-model Question {
-  id          String       @id @default(cuid())
-  type        QuestionType
-  prompt      String
-  // JSON payload: options, correct answer(s), matching pairs, ordering, etc.
-  data        Json
-  explanation String?
-  difficulty  Difficulty   @default(MEDIUM)
-  points      Int          @default(1)
-  timeEstimateSec Int?     // estimated seconds to answer
-  createdById String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  createdBy User       @relation(fields: [createdById], references: [id])
-  tags      QuestionTag[]
-  examItems ExamQuestion[]
-  answers   AttemptAnswer[]
-
-  @@index([createdById])
-
-  @@map("question")
-}
-
-model Exam {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  status      ExamStatus @default(DRAFT)
-  
-  // Academic Linking
-  courseId    String?
+// Role grants, optionally scoped to a department or course.
+model Membership {
+  id           String   @id @default(cuid())
+  userId       String
+  orgId        String
+  role         Role
   departmentId String?
+  courseId     String?
+  createdAt    DateTime @default(now())
 
-  // Exam settings
-  timeLimitMin Int?      // null = untimed
-  shuffleQuestions Boolean @default(false)
-  shuffleOptions   Boolean @default(false)
-  passMarkPct     Int     @default(50)
-  adaptive        Boolean @default(false) // CAT mode (Phase 4)
-  maxAttempts     Int     @default(1)
-  authorId        String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org        Organization @relation(fields: [orgId], references: [id])
+  department Department?  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  course     Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  author      User           @relation("ExamAuthor", fields: [authorId], references: [id])
-  items       ExamQuestion[]
-  attempts    Attempt[]
-  course      Course?        @relation(fields: [courseId], references: [id])
-  department  Department?    @relation(fields: [departmentId], references: [id])
-
-  @@index([authorId])
-  @@index([courseId])
-  @@index([departmentId])
-
-  @@map("exam")
-}
-
-model ExamQuestion {
-  id         String @id @default(cuid())
-  examId     String
-  questionId String
-  order      Int
-  points     Int    @default(1)
-
-  exam     Exam     @relation(fields: [examId], references: [id])
-  question Question @relation(fields: [questionId], references: [id])
-
-  @@unique([examId, questionId])
-  @@index([questionId])
-
-  @@map("exam_question")
-}
-
-model Attempt {
-  id         String        @id @default(cuid())
-  examId     String
-  userId     String
-  status     AttemptStatus @default(IN_PROGRESS)
-  score      Int?          // raw score
-  maxScore   Int?
-  startedAt  DateTime      @default(now())
-  submittedAt DateTime?
-  // JSON snapshot of the exam as taken (question order, shuffled options)
-  snapshot   Json?
-
-  exam    Exam            @relation(fields: [examId], references: [id])
-  user    User            @relation(fields: [userId], references: [id])
-  answers AttemptAnswer[]
-
-  @@unique([examId, userId, startedAt])
   @@index([userId])
-  @@index([examId])
-
-  @@map("attempt")
+  @@index([orgId, role])
+  @@map("membership")
 }
 
-model AttemptAnswer {
-  id         String @id @default(cuid())
-  attemptId  String
-  questionId String
-  // JSON payload: the student's response
-  response   Json
-  isCorrect  Boolean?
-  pointsEarned Int?
-  gradedAt   DateTime?
+// ─────────────────────── Academic structure ───────────────────────
 
-  attempt  Attempt  @relation(fields: [attemptId], references: [id])
-  question Question @relation(fields: [questionId], references: [id])
+model AcademicSession {
+  id        String    @id @default(cuid())
+  orgId     String
+  name      String // e.g. 2026/2027
+  startsOn  DateTime?
+  endsOn    DateTime?
+  isCurrent Boolean   @default(false)
 
-  @@unique([attemptId, questionId])
-  @@index([questionId])
+  org   Organization @relation(fields: [orgId], references: [id])
+  terms Term[]
 
-  @@map("attempt_answer")
+  @@unique([orgId, name])
+  @@map("academic_session")
+}
+
+// A term (schools) or semester (universities).
+model Term {
+  id        String @id @default(cuid())
+  sessionId String
+  name      String
+  order     Int    @default(0)
+
+  session     AcademicSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  exams       Exam[]
+  components  AssessmentComponent[]
+
+  @@unique([sessionId, name])
+  @@map("term")
 }
 
 model Department {
   id    String @id @default(cuid())
-  name  String @unique
-  code  String @unique // e.g., CS, ME, EE
-  
-  users User[]
-  exams Exam[]
-  courses Course[]
+  orgId String
+  name  String
+  code  String
 
+  org         Organization @relation(fields: [orgId], references: [id])
+  users       User[]
+  courses     Course[]
+  exams       Exam[]
+  memberships Membership[]
+
+  @@unique([orgId, code])
   @@map("department")
 }
 
-model Course {
-  id           String @id @default(cuid())
-  code         String @unique // e.g., CS101
-  title        String
-  credits      Int    @default(3)
-  departmentId  String?
-  
-  department   Department? @relation(fields: [departmentId], references: [id])
-  exams        Exam[]
-  enrollments  Enrollment[]
+// 100L–500L, JSS1–SS3, or a centre programme.
+model Level {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+  order Int    @default(0)
 
+  org     Organization     @relation(fields: [orgId], references: [id])
+  users   User[]
+  groups  CandidateGroup[]
+  courses Course[]
+
+  @@unique([orgId, name])
+  @@map("level")
+}
+
+// A class arm (JSS2B) or a CBT-centre candidate batch.
+model CandidateGroup {
+  id      String  @id @default(cuid())
+  orgId   String
+  levelId String?
+  name    String
+
+  org         Organization     @relation(fields: [orgId], references: [id])
+  level       Level?           @relation(fields: [levelId], references: [id])
+  members     GroupMember[]
+  assignments ExamAssignment[]
+
+  @@unique([orgId, name])
+  @@map("candidate_group")
+}
+
+model GroupMember {
+  groupId String
+  userId  String
+
+  group CandidateGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+  @@map("group_member")
+}
+
+model Course {
+  id           String  @id @default(cuid())
+  orgId        String
+  departmentId String?
+  levelId      String?
+  code         String
+  title        String
+  credits      Int     @default(0)
+
+  org         Organization          @relation(fields: [orgId], references: [id])
+  department  Department?           @relation(fields: [departmentId], references: [id])
+  level       Level?                @relation(fields: [levelId], references: [id])
+  enrollments Enrollment[]
+  exams       Exam[]
+  memberships Membership[]
+  components  AssessmentComponent[]
+  assignments ExamAssignment[]
+
+  @@unique([orgId, code])
   @@index([departmentId])
   @@map("course")
 }
 
+// Candidate registration on a course (staff access is a scoped Membership).
 model Enrollment {
-  id        String   @id @default(cuid())
-  userId    String
-  courseId  String
-  role      EnrollmentRole @default(STUDENT) // STUDENT or INSTRUCTOR
+  id         String   @id @default(cuid())
+  userId     String
+  courseId   String
+  termId     String?
   enrolledAt DateTime @default(now())
 
-  user   User   @relation(fields: [userId], references: [id])
-  course Course @relation(fields: [courseId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  term   Term?  @relation(fields: [termId], references: [id])
 
   @@unique([userId, courseId])
+  @@index([courseId])
   @@map("enrollment")
 }
 
-enum EnrollmentRole {
-  STUDENT
-  INSTRUCTOR
+// CA1, CA2, Exam … with weights that roll up into a term/semester result.
+model AssessmentComponent {
+  id        String  @id @default(cuid())
+  courseId  String
+  termId    String?
+  name      String
+  weightPct Int
+  examId    String?
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  term   Term?  @relation(fields: [termId], references: [id])
+  exam   Exam?  @relation(fields: [examId], references: [id])
+
+  @@map("assessment_component")
+}
+
+model Venue {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+
+  org  Organization @relation(fields: [orgId], references: [id])
+  labs Lab[]
+
+  @@unique([orgId, name])
+  @@map("venue")
+}
+
+model Lab {
+  id       String @id @default(cuid())
+  venueId  String
+  name     String
+  capacity Int    @default(0)
+
+  venue    Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  seats    Seat[]
+  sessions ExamSession[]
+
+  @@unique([venueId, name])
+  @@map("lab")
+}
+
+model Seat {
+  id    String @id @default(cuid())
+  labId String
+  label String
+
+  lab Lab @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@unique([labId, label])
+  @@map("seat")
+}
+
+// ─────────────────────── Content ───────────────────────
+
+model Subject {
+  id    String  @id @default(cuid())
+  orgId String
+  name  String
+  code  String?
+
+  org       Organization      @relation(fields: [orgId], references: [id])
+  topics    Topic[]
+  versions  QuestionVersion[]
+  poolRules SelectionRule[]
+
+  @@unique([orgId, name])
+  @@map("subject")
+}
+
+model Topic {
+  id        String  @id @default(cuid())
+  subjectId String
+  parentId  String?
+  name      String
+
+  subject   Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  parent    Topic?            @relation("TopicTree", fields: [parentId], references: [id])
+  children  Topic[]           @relation("TopicTree")
+  versions  QuestionVersion[]
+  poolRules SelectionRule[]
+
+  @@unique([subjectId, parentId, name])
+  @@map("topic")
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+
+  org       Organization    @relation(fields: [orgId], references: [id])
+  questions QuestionTag[]
+  poolRules SelectionRule[]
+
+  @@unique([orgId, name])
+  @@map("tag")
+}
+
+// Uploaded media. Bytes live in object storage under storageKey; sha256 dedupes per org.
+model Asset {
+  id           String   @id @default(cuid())
+  orgId        String
+  sha256       String
+  mimeType     String
+  byteSize     Int
+  width        Int?
+  height       Int?
+  storageKey   String   @unique
+  originalName String
+  altText      String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  org        Organization   @relation(fields: [orgId], references: [id])
+  createdBy  User?          @relation("AssetUploader", fields: [createdById], references: [id])
+  userPhotos User[]         @relation("UserPhoto")
+  evidence   ProctorEvent[]
+
+  @@unique([orgId, sha256])
+  @@map("asset")
+}
+
+// Stable identity of a question. Content lives in immutable versions.
+model Question {
+  id               String         @id @default(cuid())
+  orgId            String
+  status           QuestionStatus @default(DRAFT)
+  currentVersionId String?        @unique
+  createdById      String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?
+
+  org            Organization      @relation(fields: [orgId], references: [id])
+  createdBy      User              @relation("QuestionAuthor", fields: [createdById], references: [id])
+  currentVersion QuestionVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  versions       QuestionVersion[] @relation("Versions")
+  tags           QuestionTag[]
+  sectionItems   SectionItem[]
+  attemptItems   AttemptItem[]
+
+  @@index([orgId, status])
+  @@map("question")
+}
+
+model QuestionVersion {
+  id              String     @id @default(cuid())
+  questionId      String
+  version         Int
+  // Item-type registry key, e.g. "single-choice". Validated by src/items/registry.ts.
+  type            String
+  // Candidate-visible content: { text, assetIds }.
+  content         Json
+  // Type-specific interaction config (options, blanks…). Never contains the key.
+  interaction     Json
+  // Type-specific answer key and scoring rules. Never sent to candidates.
+  scoring         Json
+  explanation     String?
+  difficulty      Difficulty @default(MEDIUM)
+  points          Float      @default(1)
+  timeEstimateSec Int?
+  subjectId       String?
+  topicId         String?
+  stimulusId      String?
+  createdById     String
+  createdAt       DateTime   @default(now())
+
+  question      Question      @relation("Versions", fields: [questionId], references: [id], onDelete: Cascade)
+  currentOf     Question?     @relation("CurrentVersion")
+  subject       Subject?      @relation(fields: [subjectId], references: [id])
+  topic         Topic?        @relation(fields: [topicId], references: [id])
+  stimulus      Stimulus?     @relation(fields: [stimulusId], references: [id])
+  createdBy     User          @relation("VersionAuthor", fields: [createdById], references: [id])
+  sectionItems  SectionItem[]
+  attemptItems  AttemptItem[]
+
+  @@unique([questionId, version])
+  @@index([type])
+  @@map("question_version")
+}
+
+model QuestionTag {
+  questionId String
+  tagId      String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+  @@index([tagId])
+  @@map("question_tag")
+}
+
+// Shared passage, case study or media clip used by several questions.
+model Stimulus {
+  id          String   @id @default(cuid())
+  orgId       String
+  title       String
+  content     Json
+  createdById String
+  createdAt   DateTime @default(now())
+
+  org      Organization      @relation(fields: [orgId], references: [id])
+  versions QuestionVersion[]
+
+  @@map("stimulus")
+}
+
+// ─────────────────────── Exams ───────────────────────
+
+model Exam {
+  id               String         @id @default(cuid())
+  orgId            String
+  title            String
+  description      String?
+  instructions     String?
+  status           ExamStatus     @default(DRAFT)
+  courseId         String?
+  departmentId     String?
+  termId           String?
+  authorId         String
+  timeLimitMin     Int?
+  passMarkPct      Int            @default(50)
+  maxAttempts      Int            @default(1)
+  shuffleQuestions Boolean        @default(false)
+  shuffleOptions   Boolean        @default(false)
+  navigation       NavigationMode @default(FREE)
+  negativeMarking  Boolean        @default(false)
+  releasePolicy    ReleasePolicy  @default(IMMEDIATE)
+  reviewDetail     ReviewDetail   @default(SCORE_ONLY)
+  // Integrity profile L0–L4; anything above 0 also requires the org-level proctoring flag.
+  integrityLevel   Int            @default(0)
+  publishedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?
+
+  org          Organization          @relation(fields: [orgId], references: [id])
+  course       Course?               @relation(fields: [courseId], references: [id])
+  department   Department?           @relation(fields: [departmentId], references: [id])
+  term         Term?                 @relation(fields: [termId], references: [id])
+  author       User                  @relation("ExamAuthor", fields: [authorId], references: [id])
+  sections     Section[]
+  sessions     ExamSession[]
+  assignments  ExamAssignment[]
+  accommodations Accommodation[]
+  attempts     Attempt[]
+  components   AssessmentComponent[]
+  featureFlags FeatureFlag[]
+
+  @@index([orgId, status])
+  @@index([courseId])
+  @@map("exam")
+}
+
+model Section {
+  id           String  @id @default(cuid())
+  examId       String
+  title        String
+  instructions String?
+  order        Int     @default(0)
+  timeLimitMin Int?
+
+  exam         Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  items        SectionItem[]
+  rules        SelectionRule[]
+  attemptItems AttemptItem[]
+
+  @@index([examId])
+  @@map("section")
+}
+
+// A fixed question in a section, pinned to a version.
+model SectionItem {
+  id         String @id @default(cuid())
+  sectionId  String
+  questionId String
+  versionId  String
+  order      Int
+  points     Float
+
+  section  Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  question Question        @relation(fields: [questionId], references: [id])
+  version  QuestionVersion @relation(fields: [versionId], references: [id])
+
+  @@unique([sectionId, questionId])
+  @@index([questionId])
+  @@map("section_item")
+}
+
+// "Draw N approved questions matching these filters" for per-candidate forms.
+model SelectionRule {
+  id         String      @id @default(cuid())
+  sectionId  String
+  count      Int
+  points     Float       @default(1)
+  subjectId  String?
+  topicId    String?
+  tagId      String?
+  difficulty Difficulty?
+
+  section Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id])
+  topic   Topic?   @relation(fields: [topicId], references: [id])
+  tag     Tag?     @relation(fields: [tagId], references: [id])
+
+  @@index([sectionId])
+  @@map("selection_rule")
+}
+
+// A sitting: time window, optional access code, lab and IP rules.
+model ExamSession {
+  id          String   @id @default(cuid())
+  examId      String
+  name        String
+  startsAt    DateTime
+  endsAt      DateTime
+  accessCode  String?
+  labId       String?
+  lateJoinMin Int?
+  ipAllowlist String[]
+
+  exam     Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  lab      Lab?      @relation(fields: [labId], references: [id])
+  attempts Attempt[]
+
+  @@index([examId])
+  @@map("exam_session")
+}
+
+// Who may sit an exam: a whole course, a group/arm, or an individual.
+model ExamAssignment {
+  id       String  @id @default(cuid())
+  examId   String
+  courseId String?
+  groupId  String?
+  userId   String?
+
+  exam   Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  course Course?         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  group  CandidateGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user   User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@map("exam_assignment")
+}
+
+// Extra time etc. Applies to one exam, or to all exams when examId is null.
+model Accommodation {
+  id           String  @id @default(cuid())
+  userId       String
+  examId       String?
+  extraTimePct Int     @default(0)
+  notes        String?
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam Exam? @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accommodation")
+}
+
+// ─────────────────────── Delivery ───────────────────────
+
+model Attempt {
+  id               String        @id @default(cuid())
+  examId           String
+  sessionId        String?
+  userId           String
+  attemptNo        Int
+  status           AttemptStatus @default(IN_PROGRESS)
+  startedAt        DateTime      @default(now())
+  // Server-authoritative. Null for untimed exams.
+  deadlineAt       DateTime?
+  timeExtensionSec Int           @default(0)
+  submittedAt      DateTime?
+  submissionType   SubmissionType?
+  lastSeenAt       DateTime?
+  // The device currently allowed to write; a different device must be approved.
+  activeDeviceId   String?
+  ipAddress        String?
+  userAgent        String?
+  score            Float?
+  maxScore         Float
+  percent          Float?
+  passed           Boolean?
+  gradedAt         DateTime?
+  releasedAt       DateTime?
+  riskScore        Int           @default(0)
+
+  exam    Exam           @relation(fields: [examId], references: [id])
+  session ExamSession?   @relation(fields: [sessionId], references: [id])
+  user    User           @relation(fields: [userId], references: [id])
+  items   AttemptItem[]
+  events  ProctorEvent[]
+
+  @@unique([examId, userId, attemptNo])
+  @@index([userId])
+  @@index([status, deadlineAt])
+  @@map("attempt")
+}
+
+// One delivered question: pinned version, section, order and the exact option layout shown.
+model AttemptItem {
+  id         String  @id @default(cuid())
+  attemptId  String
+  sectionId  String?
+  order      Int
+  questionId String
+  versionId  String
+  points     Float
+  // Per-type delivery layout, e.g. { optionOrder: ["b","a","d","c"] }.
+  layout     Json
+
+  attempt  Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  section  Section?        @relation(fields: [sectionId], references: [id])
+  question Question        @relation(fields: [questionId], references: [id])
+  version  QuestionVersion @relation(fields: [versionId], references: [id])
+  response Response?
+  grade    ItemGrade?
+
+  @@unique([attemptId, order])
+  @@unique([attemptId, questionId])
+  @@index([versionId])
+  @@map("attempt_item")
+}
+
+model Response {
+  id            String   @id @default(cuid())
+  attemptItemId String   @unique
+  value         Json?
+  // Client-incremented; the server ignores writes with a revision it has already seen.
+  revision      Int      @default(0)
+  flagged       Boolean  @default(false)
+  timeSpentMs   Int      @default(0)
+  changeCount   Int      @default(0)
+  savedAt       DateTime @default(now())
+
+  item AttemptItem @relation(fields: [attemptItemId], references: [id], onDelete: Cascade)
+
+  @@map("response")
+}
+
+model ItemGrade {
+  id            String      @id @default(cuid())
+  attemptItemId String      @unique
+  points        Float
+  maxPoints     Float
+  isCorrect     Boolean?
+  method        GradeMethod @default(AUTO)
+  detail        Json?
+  graderId      String?
+  comment       String?
+  gradedAt      DateTime    @default(now())
+
+  item   AttemptItem @relation(fields: [attemptItemId], references: [id], onDelete: Cascade)
+  grader User?       @relation(fields: [graderId], references: [id])
+
+  @@map("item_grade")
+}
+
+model ProctorEvent {
+  id              String        @id @default(cuid())
+  attemptId       String
+  type            String
+  severity        EventSeverity @default(INFO)
+  clientAt        DateTime?
+  serverAt        DateTime      @default(now())
+  payload         Json?
+  evidenceAssetId String?
+
+  attempt  Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  evidence Asset?  @relation(fields: [evidenceAssetId], references: [id])
+
+  @@index([attemptId, serverAt])
+  @@map("proctor_event")
+}
+
+// ─────────────────────── Platform ───────────────────────
+
+// Org-wide flag when examId is null; an exam-level row overrides it.
+model FeatureFlag {
+  id      String  @id @default(cuid())
+  orgId   String
+  examId  String?
+  key     String
+  enabled Boolean @default(false)
+  config  Json?
+
+  org  Organization @relation(fields: [orgId], references: [id])
+  exam Exam?        @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, examId, key])
+  @@map("feature_flag")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String?
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  org   Organization? @relation(fields: [orgId], references: [id])
+  actor User?         @relation(fields: [actorId], references: [id])
+
+  @@index([orgId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_log")
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  orgId       String?
+  type        String
+  status      JobStatus @default(QUEUED)
+  progress    Int       @default(0)
+  input       Json?
+  result      Json?
+  error       String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  org       Organization? @relation(fields: [orgId], references: [id])
+  createdBy User?         @relation(fields: [createdById], references: [id])
+
+  @@index([orgId, createdAt])
+  @@map("job")
 }

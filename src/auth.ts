@@ -1,62 +1,47 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  // Email for staff; email or matric/registration number for candidates.
+  identifier: z.string().trim().min(2).max(160),
+  password: z.string().min(6).max(200),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 12 * 60 * 60 },
+  trustHost: true,
+  pages: { signIn: "/sign-in" },
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Email or matric number" },
         password: { label: "Password", type: "password" },
       },
       async authorize(rawCredentials) {
         const parsed = credentialsSchema.safeParse(rawCredentials);
         if (!parsed.success) return null;
+        const { identifier, password } = parsed.data;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() },
-        });
-        if (!user || !(await compare(parsed.data.password, user.passwordHash))) {
-          return null;
-        }
+        const user = identifier.includes("@")
+          ? await prisma.user.findUnique({ where: { email: identifier.toLowerCase() } })
+          : await prisma.user.findFirst({ where: { regNumber: { equals: identifier, mode: "insensitive" } } });
 
-        return { id: user.id, name: user.name, email: user.email, role: user.role };
+        if (!user || !user.isActive || !(await compare(password, user.passwordHash))) return null;
+        return { id: user.id, name: user.name, email: user.email };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role;
-        token.id = user.id;
-      } else if (token.id && !token.role) {
-        // refresh from DB if token lacks role (e.g. first login)
-      }
+      if (user?.id) token.uid = user.id;
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        let id = token.id as string | undefined;
-        if (!id) {
-          // Fallback: resolve the real user id from the email to avoid stale/invalid
-          // JWT subjects that break foreign-key relations like exam_authorId_fkey.
-          const real = await prisma.user.findUnique({
-            where: { email: (session.user.email ?? "").toLowerCase() },
-            select: { id: true },
-          });
-          id = real?.id ?? "";
-        }
-        session.user.id = id;
-        session.user.role = token.role;
-      }
+      // Roles are deliberately not stored in the session; see src/server/authz.ts.
+      if (session.user && typeof token.uid === "string") session.user.id = token.uid;
       return session;
     },
   },
