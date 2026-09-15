@@ -367,6 +367,35 @@ a.data-row .link-button { pointer-events: none; }
 .import-summary { align-items: center; color: var(--teal-dark); display: flex; font-size: 20px; gap: 8px; margin: 6px 0 14px; }
 .take-warning ul { margin: 6px 0 0; padding-left: 18px; }
 
+/* ───────── Academics ───────── */
+.page-tabs { margin-top: 28px; }
+.page-tabs a { border-bottom: 2px solid transparent; color: var(--muted); font-size: 13px; font-weight: 700; margin-bottom: -1px; padding: 10px 14px; }
+.page-tabs a.active { border-bottom-color: var(--teal); color: var(--ink); }
+.structure-grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); margin-top: 18px; }
+.structure-panel .eyebrow { color: var(--teal); margin: 0 0 6px; }
+.structure-panel h2 { font-size: 18px; margin: 0 0 6px; }
+.structure-panel > .take-hint { margin-bottom: 12px; }
+.structure-list { display: grid; gap: 2px; list-style: none; margin: 0 0 10px; padding: 0; }
+.structure-list li { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 8px; padding: 6px 0; }
+.structure-list small { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.structure-list.child { margin-left: 14px; }
+.code-chip { background: #e1f0ed; border-radius: 4px; color: var(--teal-dark); font-size: 11px; font-weight: 800; padding: 3px 6px; }
+.inline-name { background: none; border: 1px solid transparent; border-radius: 5px; color: var(--ink); flex: 1; font: inherit; font-size: 13px; min-width: 0; padding: 5px 6px; }
+.inline-name:hover, .inline-name:focus { border-color: #d5e0dc; outline: none; }
+.order-input { border: 1px solid #d5e0dc; border-radius: 5px; font: inherit; font-size: 12px; padding: 4px 5px; width: 56px; }
+.structure-add { display: flex; gap: 6px; margin-top: 8px; }
+.structure-add input, .structure-add select { background: #fbfcfb; border: 1px solid #d5e0dc; border-radius: 5px; flex: 1; font: inherit; font-size: 13px; min-width: 0; padding: 8px 10px; }
+.structure-add input.short { flex: 0 0 90px; }
+.structure-add button { align-items: center; border: 0; cursor: pointer; display: inline-flex; gap: 4px; white-space: nowrap; }
+.nested { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; padding: 10px 12px; }
+.nested-head { align-items: center; display: flex; gap: 8px; }
+.nested-head .inline-name { font-weight: 700; }
+.nested-head .status-pill { align-items: center; display: inline-flex; gap: 4px; }
+.course-aside { position: sticky; top: 20px; }
+.course-form-compact { padding: 20px; }
+.enroll-filter { margin: 14px 0 0; }
+@media (max-width: 760px) { .structure-grid { grid-template-columns: 1fr; } .course-aside { position: static; } }
+
 /* ───────── Data table ───────── */
 .authoring-page.wide { max-width: 1320px; }
 .dt { margin-top: 32px; transition: opacity .15s; }

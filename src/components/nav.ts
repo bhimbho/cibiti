@@ -13,6 +13,7 @@ const navigation: (NavItem & { permission?: Permission[] })[] = [
   { href: "/questions", label: "Question bank", icon: "questions", permission: ["question:read"] },
   { href: "/results", label: "Results", icon: "results", permission: ["results:read", "attempt:take"] },
   { href: "/people", label: "People", icon: "people", permission: ["people:manage"] },
+  { href: "/academics", label: "Academics", icon: "academics", permission: ["academics:manage"] },
 ];
 
 export function navFor(permissions: Permission[]): NavItem[] {

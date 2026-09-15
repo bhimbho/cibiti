@@ -223,6 +223,44 @@ test("exam officer adds a candidate and imports more from CSV", async ({ page, b
   await context.close();
 });
 
+test("exam officer sets up academic structure and registers a candidate on a course", async ({ page }) => {
+  const stamp = String(Date.now()).slice(-6);
+  await signIn(page, "officer@cibiti.dev");
+  await page.getByRole("link", { name: "Academics" }).click();
+  await expect(page).toHaveURL(/\/academics$/);
+
+  await page.getByLabel("Department code").fill(`E${stamp}`);
+  await page.getByLabel("Department name").fill(`Engineering ${stamp}`);
+  await page.getByRole("button", { name: "Add department" }).click();
+  await expect(page.locator(".structure-list .code-chip", { hasText: `E${stamp}` })).toBeVisible();
+
+  await page.getByLabel("Venue name").fill(`ICT Centre ${stamp}`);
+  await page.getByRole("button", { name: "Add venue" }).click();
+  // exact: "Seats in new lab for …" also contains "New lab for …".
+  await page.getByLabel(`New lab for ICT Centre ${stamp}`, { exact: true }).fill("Lab 1");
+  await page.getByLabel(`Seats in new lab for ICT Centre ${stamp}`, { exact: true }).fill("120");
+  await page.getByRole("button", { name: `Add lab to ICT Centre ${stamp}` }).click();
+  await expect(page.getByLabel("Rename Lab 1").first()).toBeVisible();
+
+  await page.getByRole("link", { name: "Courses" }).click();
+  await expect(page).toHaveURL(/\/academics\/courses$/);
+  // exact: the table's "Search code or title" box also contains "Code".
+  await page.getByLabel("Code", { exact: true }).fill(`ENG${stamp}`);
+  // By role: the table's Columns menu also has a checkbox labelled "Title".
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill("Engineering Drawing");
+  await page.getByRole("button", { name: "Add course" }).click();
+  await expect(page.getByText(`ENG${stamp} added.`)).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Search code or title" }).fill(`ENG${stamp}`);
+  await page.getByRole("link", { name: `ENG${stamp}` }).click();
+  await expect(page.getByRole("heading", { name: `ENG${stamp} · Engineering Drawing` })).toBeVisible();
+
+  await page.getByLabel("Register by matric number").fill("CSC/2026/001\nNOT/A/REAL/1");
+  await page.getByRole("button", { name: "Register candidates" }).click();
+  await expect(page.getByText("Registered 1 candidate; 1 not found.")).toBeVisible();
+  await expect(page.locator(".member-row", { hasText: "Demo Student" })).toBeVisible();
+});
+
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });
