@@ -12,6 +12,7 @@ const navigation: (NavItem & { permission?: Permission[] })[] = [
   { href: "/exams", label: "Exams", icon: "exams", permission: ["exam:write"] },
   { href: "/questions", label: "Question bank", icon: "questions", permission: ["question:read"] },
   { href: "/results", label: "Results", icon: "results", permission: ["results:read", "attempt:take"] },
+  { href: "/people", label: "People", icon: "people", permission: ["people:manage"] },
 ];
 
 export function navFor(permissions: Permission[]): NavItem[] {

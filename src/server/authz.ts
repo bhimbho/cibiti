@@ -59,7 +59,11 @@ export async function getActor(): Promise<Actor | null> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return null;
+  return actorForUser(userId);
+}
 
+/** Build an actor for a user id (sessions and background jobs). Inactive users get no actor. */
+export async function actorForUser(userId: string): Promise<Actor | null> {
   // Roles are always read from the database so revoked access takes effect immediately.
   const user = await prisma.user.findUnique({
     where: { id: userId },

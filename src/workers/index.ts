@@ -3,6 +3,7 @@ import { Worker } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { autoSubmitIfExpired, sweepExpiredAttempts } from "@/server/attempts/engine";
 import { getQueue, JOBS, QUEUE_NAME, redisConnection, type AutoSubmitJob } from "@/server/queue";
+import { PEOPLE_IMPORT_JOB, runPeopleImport } from "@/server/people/import-job";
 
 async function main() {
   const queue = getQueue();
@@ -20,6 +21,9 @@ async function main() {
         }
         case JOBS.sweepExpired:
           return { closed: await sweepExpiredAttempts() };
+        case PEOPLE_IMPORT_JOB:
+          await runPeopleImport((job.data as { jobId: string }).jobId);
+          return { done: true };
         default:
           throw new Error(`No processor for job "${job.name}".`);
       }

@@ -173,6 +173,56 @@ test("candidate reviews their own released result", async ({ page }) => {
   await expect(page.locator(".timeline")).toHaveCount(0);
 });
 
+test("exam officer adds a candidate and imports more from CSV", async ({ page, browser }) => {
+  const stamp = Date.now();
+  await signIn(page, "officer@cibiti.dev");
+  await page.getByRole("link", { name: "People" }).click();
+  await expect(page).toHaveURL(/\/people$/);
+
+  await page.getByRole("link", { name: "Add person" }).click();
+  await expect(page).toHaveURL(/\/people\/new$/);
+  await page.getByLabel("Full name").fill("Ngozi Eze");
+  await page.getByLabel("Matric / registration number").fill(`E2E/${stamp}/1`);
+  await page.getByLabel("Department").selectOption({ label: "CSC · Computer Science" });
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("ACCOUNT CREATED")).toBeVisible();
+  await expect(page.locator(".credential .mono")).toHaveText(/^[a-z2-9]{10}$/);
+
+  await page.goto("/people/import");
+  const csv = [
+    "name,matric_number,department,level,courses,password",
+    `Ifeanyi Obi,E2E/${stamp}/2,CSC,100L,CSC101,import123`,
+    `Halima Sani,E2E/${stamp}/3,CSC,100L,CSC101,`,
+    `Broken Row,E2E/${stamp}/4,XYZ,100L,,`,
+  ].join("\n");
+  await page.getByLabel("Or paste CSV").fill(csv);
+  await page.getByRole("button", { name: "Check file" }).click();
+  await expect(page.locator(".import-counts")).toContainText("2 ready");
+  await expect(page.locator(".row-error")).toContainText('Unknown department "XYZ"');
+
+  await page.getByRole("button", { name: "Import 2 people" }).click();
+  // Three rows in the file: two created, the broken one skipped and explained.
+  await expect(page.getByText("2 of 3 accounts created")).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator(".import-panel .take-warning")).toContainText("1 row was skipped");
+  await expect(page.locator(".import-panel .take-warning")).toContainText("Line 4");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download passwords" }).click();
+  expect((await download).suggestedFilename()).toBe("imported-passwords.csv");
+  await expect(page.getByText("Passwords downloaded and removed from the server.")).toBeVisible();
+
+  // The imported candidate can sign in with the password from the file.
+  const context = await browser.newContext();
+  const candidatePage = await context.newPage();
+  await candidatePage.goto("/sign-in");
+  await candidatePage.getByLabel("Email or matric number").fill(`E2E/${stamp}/2`);
+  await candidatePage.getByLabel("Password").fill("import123");
+  await candidatePage.getByRole("button", { name: "Sign in" }).click();
+  await expect(candidatePage.getByRole("heading", { name: /Good (morning|afternoon|evening)/ })).toBeVisible();
+  // Enrolled on CSC101 by the import, so the course's exam is listed.
+  await expect(candidatePage.locator(".exam-row", { hasText: "CSC101 Continuous Assessment 1" })).toBeVisible();
+  await context.close();
+});
+
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });
