@@ -51,6 +51,31 @@ test("candidate answers, survives a reload, and submits", async ({ page }) => {
   await expect(page.getByText(/\d+%|result will be released/)).toBeVisible();
 });
 
+test("staff search and filter the question bank", async ({ page }) => {
+  await page.goto("/sign-in");
+  await page.getByLabel("Email or matric number").fill("instructor@cibiti.dev");
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("link", { name: "Question bank" }).click();
+
+  const rows = page.locator(".dt tbody tr");
+  await expect(rows.first()).toBeVisible();
+  const initialCount = await rows.count();
+  expect(initialCount).toBeGreaterThan(5);
+
+  await page.getByRole("textbox", { name: "Search question text" }).fill("independence");
+  await expect(page).toHaveURL(/q=independence/);
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("Nigeria gain independence");
+
+  await page.getByRole("button", { name: "Clear all" }).click();
+  await page.locator(".dt-menu summary", { hasText: "Type" }).click();
+  await page.getByRole("checkbox", { name: "True / False" }).check();
+  await expect(page).toHaveURL(/type=true-false/);
+  await expect(rows.first()).toContainText("True / False");
+  expect(await rows.count()).toBeLessThan(initialCount);
+});
+
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });

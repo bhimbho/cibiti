@@ -8,6 +8,7 @@ export type NavItem = { href: string; label: string; icon: NavIcon };
 // Entries appear once their pages exist; `permission` controls who sees them.
 const navigation: (NavItem & { permission?: Permission })[] = [
   { href: "/", label: "Overview", icon: "overview" },
+  { href: "/questions", label: "Question bank", icon: "questions", permission: "question:read" },
 ];
 
 export function navFor(permissions: Permission[]): NavItem[] {
