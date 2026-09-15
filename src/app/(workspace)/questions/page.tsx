@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { questionTableConfig } from "@/lib/question-table";
 import { parseTableParams } from "@/lib/table-params";
 import { can } from "@/server/authz";
@@ -21,9 +22,12 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
           <h1>Question bank</h1>
           <p>Search, filter and review every question in your organisation.</p>
         </div>
-        <div className="bank-count">
-          <strong>{total}</strong>
-          <span>{params.q || Object.keys(params.filters).length ? "matching questions" : "questions"}</span>
+        <div className="header-actions">
+          <div className="bank-count">
+            <strong>{total}</strong>
+            <span>{params.q || Object.keys(params.filters).length ? "matching questions" : "questions"}</span>
+          </div>
+          {can(actor, "question:write") && <Link className="primary-button" href="/questions/new">Add question<span>-&gt;</span></Link>}
         </div>
       </div>
       <QuestionBankTable rows={rows} total={total} params={params} facets={facets} canReview={can(actor, "question:review")} canWrite={can(actor, "question:write")} />

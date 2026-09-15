@@ -372,6 +372,14 @@ function PlayerSession({
                   </button>
                 </div>
                 <h2 className="player-prompt" id={`q-${item.id}-prompt`}>{item.content.text}</h2>
+                {item.content.assetIds && item.content.assetIds.length > 0 && (
+                  <div className="prompt-images">
+                    {item.content.assetIds.map((assetId) => (
+                      // eslint-disable-next-line @next/next/no-img-element -- served from the app's own asset route
+                      <img key={assetId} src={`/api/assets/${assetId}`} alt={`Figure for question ${index + 1}`} />
+                    ))}
+                  </div>
+                )}
                 <ItemPlayer
                   type={item.type}
                   view={item.view}

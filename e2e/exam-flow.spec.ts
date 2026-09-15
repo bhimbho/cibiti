@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Requires a seeded database (npm run db:seed) and a running worker.
-// Uses candidate CSC/2026/003 on the General Studies practice quiz (3 attempts per fresh seed).
+// Uses candidate E2E_CANDIDATE (default CSC/2026/003) on the General Studies practice quiz,
+// which allows 3 attempts per fresh seed.
+const candidate = process.env.E2E_CANDIDATE ?? "CSC/2026/003";
 
 async function signIn(page: Page, identifier: string) {
   await page.goto("/sign-in");
@@ -22,7 +24,7 @@ async function answerCurrentQuestion(page: Page) {
 }
 
 test("candidate answers, survives a reload, and submits", async ({ page }) => {
-  await signIn(page, "CSC/2026/003");
+  await signIn(page, candidate);
 
   const row = page.locator(".exam-row", { hasText: "General Studies Practice Quiz" });
   await row.getByRole("link", { name: /Begin|Continue/ }).click();
@@ -74,6 +76,29 @@ test("staff search and filter the question bank", async ({ page }) => {
   await expect(page).toHaveURL(/type=true-false/);
   await expect(rows.first()).toContainText("True / False");
   expect(await rows.count()).toBeLessThan(initialCount);
+});
+
+test("instructor creates a question and finds it in the bank", async ({ page }) => {
+  const stem = `Which layer of the OSI model handles routing? ${Date.now()}`;
+  await signIn(page, "instructor@cibiti.dev");
+  await page.goto("/questions/new");
+
+  await page.getByLabel("Question", { exact: true }).fill(stem);
+  const options = page.locator(".option-input");
+  for (const [i, text] of ["Physical", "Network", "Session", "Application"].entries()) await options.nth(i).fill(text);
+  await page.getByLabel("Mark option B correct").check();
+
+  // The live preview scores the chosen answer with the real scorer.
+  await page.locator(".editor-preview [data-option-index='1']").click();
+  await page.getByRole("button", { name: "Check answer" }).click();
+  await expect(page.locator(".preview-check")).toContainText("Correct");
+
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page).toHaveURL(/\/questions\/[^/]+\?saved=1/);
+  await expect(page.getByText("Question created.")).toBeVisible();
+
+  await page.goto(`/questions?q=${encodeURIComponent("OSI model handles routing")}`);
+  await expect(page.locator(".dt tbody tr", { hasText: stem })).toBeVisible();
 });
 
 test("health endpoint reports every dependency", async ({ request }) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createColumnHelper } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
@@ -22,7 +23,7 @@ const columns = [
     meta: { label: "Question" },
     cell: ({ row }) => (
       <div className="dt-primary">
-        <strong>{row.original.text}</strong>
+        <Link className="dt-link" href={`/questions/${row.original.id}`}>{row.original.text}</Link>
         <small>{[row.original.subject, row.original.topic].filter(Boolean).join(" › ") || "No subject"}</small>
       </div>
     ),
