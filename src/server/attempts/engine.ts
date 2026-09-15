@@ -1,4 +1,5 @@
-import { AttemptStatus, Prisma, QuestionStatus, SubmissionType, type Difficulty } from "@prisma/client";
+import { AttemptStatus, Prisma, SubmissionType } from "@prisma/client";
+import { poolWhere } from "../exams/pool";
 import { prisma } from "@/lib/prisma";
 import { candidateView, createLayout, getItemType, parseResponse } from "@/items/registry";
 import { shuffleInPlace } from "@/items/shared";
@@ -64,20 +65,7 @@ async function planItems(
 
     for (const rule of section.rules) {
       const pool = await prisma.question.findMany({
-        where: {
-          orgId,
-          status: QuestionStatus.APPROVED,
-          deletedAt: null,
-          id: { notIn: [...used] },
-          currentVersion: {
-            is: {
-              ...(rule.subjectId ? { subjectId: rule.subjectId } : {}),
-              ...(rule.topicId ? { topicId: rule.topicId } : {}),
-              ...(rule.difficulty ? { difficulty: rule.difficulty as Difficulty } : {}),
-            },
-          },
-          ...(rule.tagId ? { tags: { some: { tagId: rule.tagId } } } : {}),
-        },
+        where: poolWhere(orgId, rule, [...used]),
         select: { id: true, currentVersion: { select: { id: true, type: true, interaction: true } } },
       });
       for (const question of shuffleInPlace(pool, Math.random).slice(0, rule.count)) {

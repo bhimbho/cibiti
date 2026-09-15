@@ -101,6 +101,46 @@ test("instructor creates a question and finds it in the bank", async ({ page }) 
   await expect(page.locator(".dt tbody tr", { hasText: stem })).toBeVisible();
 });
 
+test("exam officer builds and publishes an exam that candidates can see", async ({ page, browser }) => {
+  const title = `E2E Mock Examination ${Date.now()}`;
+  await signIn(page, "officer@cibiti.dev");
+  await page.getByRole("link", { name: "Exams" }).click();
+  await expect(page).toHaveURL(/\/exams$/);
+  await page.getByRole("link", { name: "Create exam" }).click();
+  await expect(page).toHaveURL(/\/exams\/new$/);
+
+  await page.getByLabel("Exam title", { exact: true }).fill(title);
+  await page.getByRole("button", { name: "Create exam" }).click();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.locator(".checks-panel")).toContainText("Add at least one question.");
+
+  // A fixed question from the bank.
+  await page.getByRole("button", { name: "Add questions" }).click();
+  await page.getByRole("textbox", { name: "Search question text" }).fill("CPU stand for");
+  await page.locator(".picker-row", { hasText: "What does CPU stand for?" }).locator("input").check();
+  await page.getByRole("button", { name: "Add 1 question" }).click();
+  await expect(page.locator(".builder-item", { hasText: "What does CPU stand for?" })).toBeVisible();
+
+  // A random draw of two networking questions.
+  await page.getByRole("button", { name: "Add random draw" }).click();
+  const rule = page.locator(".rule-form");
+  await rule.getByLabel("Questions to draw").fill("2");
+  await rule.getByLabel("Subject").selectOption({ label: "Computer Science" });
+  await rule.getByLabel("Topic").selectOption({ label: "Networking" });
+  await rule.getByRole("button", { name: "Add draw" }).click();
+  await expect(page.locator(".builder-item.rule")).toContainText("Draw 2 random questions");
+
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByText("Exam published.")).toBeVisible();
+  await expect(page.locator(".authoring-header .status-pill")).toHaveText("Published");
+
+  const candidateContext = await browser.newContext();
+  const candidatePage = await candidateContext.newPage();
+  await signIn(candidatePage, "CSC/2026/001");
+  await expect(candidatePage.locator(".exam-row", { hasText: title })).toContainText("3 questions");
+  await candidateContext.close();
+});
+
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });
