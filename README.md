@@ -9,9 +9,14 @@ Computer-based testing for **universities, CBT centres and schools**, built to r
 - **Question types**: single choice, multiple response (all-or-nothing, partial, right-minus-wrong), true/false and short answer, each with pure, unit-tested scoring.
 - **Exams**: sections with fixed questions or questions drawn at random from the bank, shuffling, negative marking, sittings with access codes and IP allowlists, accommodations (extra time), release policies.
 - **Integrity**: every focus, fullscreen, clipboard and network event is logged. Enforcement is built but off unless the `proctoring` feature flag is enabled.
-- **Staff**: role-based access (admin, exam officer, instructor, reviewer, grader, invigilator), an audited question bank table with search, filters and bulk status changes, invigilator device release, image uploads.
+- **Question bank & editor**: searchable table with bulk approve/retire; editor with images, subjects and topics, versioning, and a live candidate preview that checks the answer.
+- **Exam builder**: settings, sections, fixed questions and random draws, sittings with access codes, labs and IP allowlists, publish checks, close/duplicate.
+- **Results**: staff results table with release controls, attempt reports with answer review and integrity timeline; candidates see their own released results.
+- **People**: accounts with roles and generated one-time passwords, extra-time accommodations, CSV import in a background job.
+- **Academics**: departments, levels, groups/arms, sessions and terms, venues and labs, courses with registration by matric number.
+- **Invigilation & settings**: live console (add time, move computer, submit), feature-flag switches, audit log.
 
-Question authoring, exam building, grading, results and analytics screens are next (Phases 1–5).
+Manual grading queues, analytics and advanced question types are next (Phases 4–7).
 
 ## Stack
 
