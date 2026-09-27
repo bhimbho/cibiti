@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { ViewingAsBanner } from "@/components/people/stop-view-as";
 import { navFor, primaryRoleLabel } from "@/components/nav";
 import { prisma } from "@/lib/prisma";
 import { permissionsFor } from "@/server/authz";
@@ -11,7 +12,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   return (
     <div className="app-shell">
       <Sidebar name={actor.name} roleLabel={primaryRoleLabel(actor.roles)} orgName={org.name} nav={navFor(permissionsFor(actor))} />
-      <div className="page-wrap">{children}</div>
+      <div className="page-wrap">
+        {actor.viewAs && <ViewingAsBanner name={actor.name} realName={actor.viewAs.realName} />}
+        {children}
+      </div>
     </div>
   );
 }

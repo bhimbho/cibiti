@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { RotateCcw } from "lucide-react";
 import { callApi } from "@/components/exam-builder/api";
 
 /**
@@ -27,7 +28,9 @@ export function RestartButton({
     <>
       <button
         type="button"
-        className="outline-button"
+        // Destructive, so it wears the danger styling rather than looking like the
+        // navigation buttons beside it.
+        className="danger-button restart-button"
         disabled={pending}
         onClick={async () => {
           setError(null);
@@ -44,6 +47,7 @@ export function RestartButton({
           router.refresh();
         }}
       >
+        <RotateCcw size={14} aria-hidden />
         {pending ? "Restarting…" : "Restart exam"}
       </button>
       {error && <span className="score-fail">{error}</span>}

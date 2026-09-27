@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { audit } from "../audit";
 import { canAnywhere, type Actor } from "../authz";
 import { badRequest, forbidden, notFound } from "../http";
+import { weightProblems } from "./component-weights";
+
+export { weightProblems };
 
 /**
  * A course's assessment components: the continuous assessment and the exam that
@@ -22,21 +25,6 @@ export const componentsSchema = z.object({
     .max(10),
 });
 export type ComponentsInput = z.infer<typeof componentsSchema>;
-
-/** Weights must add to exactly 100: anything else silently rescales every mark. */
-export function weightProblems(components: { name: string; weightPct: number }[]): string[] {
-  if (components.length === 0) return [];
-  const problems: string[] = [];
-  const total = components.reduce((sum, c) => sum + c.weightPct, 0);
-  if (total !== 100) problems.push(`Weights add up to ${total}%, not 100%.`);
-  const names = new Set<string>();
-  for (const component of components) {
-    const key = component.name.trim().toLowerCase();
-    if (names.has(key)) problems.push(`More than one component is called ${component.name}.`);
-    names.add(key);
-  }
-  return problems;
-}
 
 export async function courseComponents(actor: Actor, courseId: string) {
   const course = await prisma.course.findFirst({

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { callApi } from "@/components/exam-builder/api";
-import { weightProblems } from "@/server/grades/components";
+import { weightProblems } from "@/server/grades/component-weights";
 
 type Row = { name: string; weightPct: string; examId: string };
 

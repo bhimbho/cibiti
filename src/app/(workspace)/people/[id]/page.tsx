@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PersonForm } from "@/components/people/person-form";
 import { AccommodationForm, ResetPassword } from "@/components/people/person-extras";
+import { ViewAsButton } from "@/components/people/view-as-button";
+import { canAnywhere } from "@/server/authz";
 import { requirePagePermission } from "@/server/page-auth";
 import { getPersonForEditing, peopleFormOptions } from "@/server/people/mutate";
 
@@ -33,6 +35,19 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         <PersonForm userId={person.id} initial={person.input} options={options} isSelf={person.id === actor.userId} />
 
         <aside className="builder-sections">
+          {/* Administrators only, and never yourself. */}
+          {canAnywhere(actor, "org:manage") && person.id !== actor.userId && person.input.isActive && (
+            <section className="panel">
+              <p className="eyebrow">SUPPORT</p>
+              <p className="take-hint">
+                See what this user sees — their dashboard, their exams, their results — without their
+                password. Nothing can be changed while you look, and both starting and stopping are
+                recorded in the audit log.
+              </p>
+              <ViewAsButton userId={person.id} name={person.input.name} />
+            </section>
+          )}
+
           <section className="panel">
             <p className="eyebrow">PASSWORD</p>
             <ResetPassword userId={person.id} signIn={person.input.regNumber ?? person.input.email ?? ""} />

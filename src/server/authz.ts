@@ -53,13 +53,25 @@ export type Actor = {
   memberships: { role: Role; departmentId: string | null; courseId: string | null }[];
   isStaff: boolean;
   isCandidate: boolean;
+  /**
+   * Set when an administrator is viewing the app as this user. The actor is the
+   * target — that is the point — so anything that must know who is really there
+   * (audit entries, the read-only guard) reads this instead.
+   */
+  viewAs?: { realUserId: string; realName: string; startedAt: number };
 };
 
 export async function getActor(): Promise<Actor | null> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return null;
-  return actorForUser(userId);
+  const actor = await actorForUser(userId);
+  if (!actor) return null;
+
+  // An administrator viewing as someone else acts as them for the rest of the
+  // request, read-only, with the real identity carried in `viewAs`.
+  const { resolveImpersonation } = await import("./impersonation");
+  return (await resolveImpersonation(actor)) ?? actor;
 }
 
 /** Build an actor for a user id (sessions and background jobs). Inactive users get no actor. */

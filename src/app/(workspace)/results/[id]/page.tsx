@@ -86,19 +86,21 @@ export default async function AttemptReportPage({ params }: { params: Promise<{ 
           ) : (
             <strong className="muted-score">{attempt.status === "IN_PROGRESS" ? "In progress" : "Awaiting marking"}</strong>
           )}
-          {report.viewer === "staff" && attempt.status === "GRADED" && !report.released && <ReleaseButton attemptId={attempt.id} />}
-          {/* Not offered once marked: a marked result may already be on a broadsheet,
-              and withdrawing it is a separate decision. */}
-          {/* Offered only to staff the policy would actually let through, rather than
-              showing a button that always fails. Marked attempts included: a paper
-              broken by a dead machine is usually auto-graded before anyone asks. */}
-          {mayRestart && attempt.status !== "VOIDED" && (
-            <RestartButton
-              attemptId={attempt.id}
-              candidate={candidate.name}
-              withdrawsResult={report.released}
-            />
-          )}
+          {/* One row, so the actions read as a set rather than stacking down the
+              right-hand edge. */}
+          <span className="review-actions">
+            {report.viewer === "staff" && attempt.status === "GRADED" && !report.released && <ReleaseButton attemptId={attempt.id} />}
+            {/* Offered only to staff the policy would actually let through, rather than
+                showing a button that always fails. Marked attempts included: a paper
+                broken by a dead machine is usually auto-graded before anyone asks. */}
+            {mayRestart && attempt.status !== "VOIDED" && (
+              <RestartButton
+                attemptId={attempt.id}
+                candidate={candidate.name}
+                withdrawsResult={report.released}
+              />
+            )}
+          </span>
           {attempt.status === "VOIDED" && (
             <span className="draft-hint">Voided — the candidate sat, or will sit, a different attempt</span>
           )}

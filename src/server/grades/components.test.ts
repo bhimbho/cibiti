@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { weightProblems } from "./components";
+import { weightProblems } from "./component-weights";
 
 describe("weightProblems", () => {
   it("accepts weights that add to 100", () => {

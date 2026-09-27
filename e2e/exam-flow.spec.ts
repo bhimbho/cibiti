@@ -549,3 +549,42 @@ test("administrator allows restarts and an invigilator rescues a candidate", asy
   await candidateContext.close();
   await invigilatorContext.close();
 });
+
+test("administrator views the app as a candidate, read-only, then stops", async ({ page }) => {
+  await signIn(page, "admin@cibiti.dev");
+
+  // Find the candidate and start viewing as them.
+  await page.goto("/people");
+  await page.getByRole("textbox", { name: "Search name, email or matric number" }).fill("CSC/2026/001");
+  // Wait for the filtered row before clicking: the table fetches as you type.
+  const candidateRow = page.locator(".dt tbody tr", { hasText: "CSC/2026/001" });
+  await expect(candidateRow).toHaveCount(1);
+  await candidateRow.getByRole("link", { name: "Demo Student" }).click();
+  await expect(page.getByRole("heading", { name: "Demo Student" })).toBeVisible();
+
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "View as this user" }).click();
+
+  // The banner says whose view this is, and who is really signed in.
+  const banner = page.getByRole("status").filter({ hasText: "Viewing as" });
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("read-only");
+  // The sidebar is the candidate's now, not the administrator's.
+  await expect(page.locator(".sidebar")).toContainText("Candidate");
+  await expect(page.getByRole("link", { name: "People" })).toHaveCount(0);
+
+  // Writing is refused while looking, whatever the request.
+  const refused = await page.request.put("/api/settings/flags", { data: { key: "proctoring", enabled: true } });
+  expect(refused.status()).toBe(403);
+  expect((await refused.json()).error).toMatch(/read-only/i);
+
+  await banner.getByRole("button", { name: "Stop viewing as them" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Viewing as" })).toHaveCount(0);
+  // Back to being the administrator, with the staff navigation returned.
+  await expect(page.getByRole("link", { name: "People" })).toBeVisible();
+
+  // Both ends are on the record.
+  await page.goto("/settings/audit");
+  await expect(page.locator(".dt tbody tr", { hasText: "impersonation.stop" }).first()).toBeVisible();
+  await expect(page.locator(".dt tbody tr", { hasText: "impersonation.start" }).first()).toBeVisible();
+});
