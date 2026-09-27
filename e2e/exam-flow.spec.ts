@@ -498,10 +498,22 @@ test("administrator allows restarts and an invigilator rescues a candidate", asy
   await expect(page.getByRole("heading", { name: "Recovery and extra time" })).toBeVisible();
   await expect(page.getByText(/exams cannot be restarted/i)).toBeVisible();
 
-  await page.getByRole("switch", { name: "Allow exams to be restarted" }).click();
-  await page.getByRole("switch", { name: "Invigilators may restart" }).click();
-  await page.getByRole("button", { name: "Save policy" }).click();
-  await expect(page.getByText("Exam-day policy saved.")).toBeVisible();
+  // Each switch saves as it is changed; there is no Save button to forget.
+  const allowRestart = page.getByRole("switch", { name: "Allow exams to be restarted" });
+  const invigilatorRestart = page.getByRole("switch", { name: "Invigilators may restart" });
+  // Meaningless until restarting is on, so it is unreachable rather than refused.
+  await expect(invigilatorRestart).toBeDisabled();
+
+  await allowRestart.click();
+  await expect(allowRestart).toHaveAttribute("aria-checked", "true");
+  await expect(invigilatorRestart).toBeEnabled();
+  await invigilatorRestart.click();
+  await expect(invigilatorRestart).toHaveAttribute("aria-checked", "true");
+
+  // Saved, not just shown: a reload comes back with both on.
+  await page.reload();
+  await expect(page.getByRole("switch", { name: "Allow exams to be restarted" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("switch", { name: "Invigilators may restart" })).toHaveAttribute("aria-checked", "true");
 
   // A candidate starts the practice quiz and gets stuck.
   const candidateContext = await browser.newContext();

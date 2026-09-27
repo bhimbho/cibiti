@@ -38,11 +38,20 @@ export async function restartAttempt(actor: Actor, attemptId: string, input: z.i
   if (!attempt) throw notFound("Attempt");
 
   if (attempt.status === AttemptStatus.VOIDED) throw conflict("This attempt has already been voided.");
-  // A marked result has left the marking room and may already be on a broadsheet;
-  // wiping it quietly is not a decision this action should make.
-  if (attempt.status === AttemptStatus.GRADED) {
-    throw conflict(
-      "This attempt has already been marked. Void it from the results screen if the result must be withdrawn, or give the candidate another attempt instead.",
+
+  const standing = standingOf(actor);
+
+  // A marked attempt is the common case, not an edge case: force-submitting an
+  // objective paper auto-grades it within seconds, so an exam broken by a dead
+  // machine is usually already GRADED by the time anyone asks to restart it.
+  //
+  // What does need care is a result the candidate has already seen. Restarting
+  // withdraws it, which is a decision for an exam officer, not for whoever is on
+  // the floor.
+  const withdrawsReleasedResult = attempt.status === AttemptStatus.GRADED && attempt.releasedAt !== null;
+  if (withdrawsReleasedResult && !standing.canManageExams) {
+    throw forbidden(
+      "This result has already been released to the candidate. An exam officer or an administrator can restart it, which withdraws the result.",
     );
   }
 
@@ -53,7 +62,7 @@ export async function restartAttempt(actor: Actor, attemptId: string, input: z.i
     }),
   ]);
 
-  const decision = canRestartAttempt(policy, standingOf(actor), restartsUsed);
+  const decision = canRestartAttempt(policy, standing, restartsUsed);
   if (!decision.ok) throw forbidden(decision.reason);
 
   await prisma.$transaction(async (tx) => {
@@ -66,7 +75,12 @@ export async function restartAttempt(actor: Actor, attemptId: string, input: z.i
         attemptId,
         type: "attempt.restarted",
         severity: "HIGH",
-        payload: { by: actor.userId, reason: input.reason, previousStatus: attempt.status },
+        payload: {
+          by: actor.userId,
+          reason: input.reason,
+          previousStatus: attempt.status,
+          withdrewReleasedResult: withdrawsReleasedResult,
+        },
       },
     });
     await audit(
@@ -76,7 +90,12 @@ export async function restartAttempt(actor: Actor, attemptId: string, input: z.i
         entityType: "attempt",
         entityId: attemptId,
         before: { status: attempt.status },
-        after: { status: AttemptStatus.VOIDED, reason: input.reason, restartsUsed: restartsUsed + 1 },
+        after: {
+          status: AttemptStatus.VOIDED,
+          reason: input.reason,
+          restartsUsed: restartsUsed + 1,
+          withdrewReleasedResult: withdrawsReleasedResult,
+        },
       },
       tx,
     );
@@ -91,5 +110,7 @@ export async function restartAttempt(actor: Actor, attemptId: string, input: z.i
     exam: attempt.exam.title,
     restartsUsed: restartsUsed + 1,
     restartsAllowed: policy.maxRestartsPerCandidate,
+    /** True when a result the candidate could already see was taken back. */
+    withdrewReleasedResult: withdrawsReleasedResult,
   };
 }

@@ -3,38 +3,66 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { callApi } from "@/components/exam-builder/api";
-import { policyProblems, type ExamDayPolicy } from "@/server/exam-day/policy";
+import type { ExamDayPolicy } from "@/server/exam-day/policy";
+
+type Field = keyof ExamDayPolicy;
 
 /**
- * Exam-day recovery settings. Restarting is off by default and switched on
- * deliberately, because it destroys a candidate's work.
+ * Exam-day recovery settings. Each control saves as it is changed, like the feature
+ * switches below — there is no Save button to forget. A failed save puts the control
+ * back where it was, so the screen never claims a setting that is not stored.
  */
 export function ExamDayPolicyForm({ policy, isDefault }: { policy: ExamDayPolicy; isDefault: boolean }) {
   const router = useRouter();
   const [value, setValue] = useState<ExamDayPolicy>(policy);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [pending, setPending] = useState<Field | null>(null);
+  const [saved, setSaved] = useState<Field | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const problems = policyProblems(value);
-
-  function set<K extends keyof ExamDayPolicy>(key: K, next: ExamDayPolicy[K]) {
-    setValue((prev) => ({ ...prev, [key]: next }));
-    setMessage(null);
-  }
-
-  async function save() {
-    setSaving(true);
-    setMessage(null);
-    const result = await callApi("/api/settings/exam-day", "PUT", value);
-    setSaving(false);
-    if (!result.ok) return setMessage({ tone: "error", text: result.error });
-    setMessage({ tone: "ok", text: "Exam-day policy saved." });
+  async function save(next: ExamDayPolicy, field: Field) {
+    const previous = value;
+    setValue(next);
+    setPending(field);
+    setError(null);
+    const result = await callApi("/api/settings/exam-day", "PUT", next);
+    setPending(null);
+    if (!result.ok) {
+      // Never leave a switch showing a state the server refused.
+      setValue(previous);
+      setError(result.error);
+      return;
+    }
+    setSaved(field);
     router.refresh();
   }
+
+  function toggle(field: "allowRestart" | "invigilatorCanRestart" | "invigilatorCanExtend") {
+    const next = { ...value, [field]: !value[field] };
+    // Switching restarting off drops the invigilator permission with it, rather than
+    // leaving a setting that grants something already forbidden.
+    if (field === "allowRestart" && !next.allowRestart) next.invigilatorCanRestart = false;
+    void save(next, field);
+  }
+
+  /** Numbers commit when the field is left, since saving each keystroke would save nonsense. */
+  function commitNumber(field: "maxRestartsPerCandidate" | "maxExtraMinutesPerAttempt", raw: string) {
+    const bounds = field === "maxRestartsPerCandidate" ? { min: 1, max: 10 } : { min: 0, max: 480 };
+    const parsed = Number(raw);
+    if (raw.trim() === "" || Number.isNaN(parsed)) {
+      setValue((prev) => ({ ...prev, [field]: policy[field] }));
+      return;
+    }
+    const clamped = Math.max(bounds.min, Math.min(bounds.max, Math.round(parsed)));
+    if (clamped === policy[field] && clamped === value[field]) return;
+    void save({ ...value, [field]: clamped }, field);
+  }
+
+  const note = (field: Field) => (pending === field ? "Saving…" : saved === field ? "Saved" : null);
 
   return (
     <div className="policy-form">
       {isDefault && <p className="take-hint">Using the default policy: time can be added, exams cannot be restarted.</p>}
+      {error && <p className="take-error" role="status">{error}</p>}
 
       <div className="flag-row">
         <div>
@@ -44,33 +72,46 @@ export function ExamDayPolicyForm({ policy, isDefault }: { policy: ExamDayPolicy
             and timing stay on record. With this off, nobody can restart — administrators included.
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={value.allowRestart}
-          aria-label="Allow exams to be restarted"
-          className={`switch ${value.allowRestart ? "on" : ""}`}
-          onClick={() => set("allowRestart", !value.allowRestart)}
-        >
-          <span />
-        </button>
+        <span className="policy-state">
+          {note("allowRestart") && <small className="take-hint">{note("allowRestart")}</small>}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={value.allowRestart}
+            aria-label="Allow exams to be restarted"
+            className={`switch ${value.allowRestart ? "on" : ""}`}
+            disabled={pending !== null}
+            onClick={() => toggle("allowRestart")}
+          >
+            <span />
+          </button>
+        </span>
       </div>
 
       <div className="flag-row">
         <div>
           <strong>Invigilators may restart</strong>
-          <p>Otherwise only exam officers and administrators can, and an invigilator must ask.</p>
+          <p>
+            Otherwise only exam officers and administrators can, and an invigilator must ask.
+            {!value.allowRestart && " Turn restarting on first."}
+          </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={value.invigilatorCanRestart}
-          aria-label="Invigilators may restart"
-          className={`switch ${value.invigilatorCanRestart ? "on" : ""}`}
-          onClick={() => set("invigilatorCanRestart", !value.invigilatorCanRestart)}
-        >
-          <span />
-        </button>
+        <span className="policy-state">
+          {note("invigilatorCanRestart") && <small className="take-hint">{note("invigilatorCanRestart")}</small>}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={value.invigilatorCanRestart}
+            aria-label="Invigilators may restart"
+            className={`switch ${value.invigilatorCanRestart ? "on" : ""}`}
+            // Unreachable rather than refused: this permission means nothing while
+            // restarting is switched off.
+            disabled={pending !== null || !value.allowRestart}
+            onClick={() => toggle("invigilatorCanRestart")}
+          >
+            <span />
+          </button>
+        </span>
       </div>
 
       <div className="flag-row">
@@ -78,59 +119,51 @@ export function ExamDayPolicyForm({ policy, isDefault }: { policy: ExamDayPolicy
           <strong>Invigilators may add time</strong>
           <p>Exam officers and administrators always may.</p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={value.invigilatorCanExtend}
-          aria-label="Invigilators may add time"
-          className={`switch ${value.invigilatorCanExtend ? "on" : ""}`}
-          onClick={() => set("invigilatorCanExtend", !value.invigilatorCanExtend)}
-        >
-          <span />
-        </button>
+        <span className="policy-state">
+          {note("invigilatorCanExtend") && <small className="take-hint">{note("invigilatorCanExtend")}</small>}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={value.invigilatorCanExtend}
+            aria-label="Invigilators may add time"
+            className={`switch ${value.invigilatorCanExtend ? "on" : ""}`}
+            disabled={pending !== null}
+            onClick={() => toggle("invigilatorCanExtend")}
+          >
+            <span />
+          </button>
+        </span>
       </div>
 
       <div className="form-row">
         <label>
           Restarts per candidate, per exam
+          <span className="field-hint">{note("maxRestartsPerCandidate") ?? "Saved when you leave the field."}</span>
           <input
             type="number"
             min={1}
             max={10}
             value={value.maxRestartsPerCandidate}
-            onChange={(e) => set("maxRestartsPerCandidate", Number(e.target.value) || 1)}
+            disabled={pending !== null}
+            onChange={(e) => setValue((prev) => ({ ...prev, maxRestartsPerCandidate: Number(e.target.value) }))}
+            onBlur={(e) => commitNumber("maxRestartsPerCandidate", e.target.value)}
           />
         </label>
         <label>
           Most added time per attempt (minutes)
-          <span className="field-hint">0 switches added time off entirely.</span>
+          <span className="field-hint">
+            {note("maxExtraMinutesPerAttempt") ?? "0 switches added time off entirely."}
+          </span>
           <input
             type="number"
             min={0}
             max={480}
             value={value.maxExtraMinutesPerAttempt}
-            onChange={(e) => set("maxExtraMinutesPerAttempt", Number(e.target.value) || 0)}
+            disabled={pending !== null}
+            onChange={(e) => setValue((prev) => ({ ...prev, maxExtraMinutesPerAttempt: Number(e.target.value) }))}
+            onBlur={(e) => commitNumber("maxExtraMinutesPerAttempt", e.target.value)}
           />
         </label>
-      </div>
-
-      {problems.length > 0 && (
-        <ul className="grade-scale-problems">
-          {problems.map((problem) => (
-            <li key={problem}>{problem}</li>
-          ))}
-        </ul>
-      )}
-
-      <div className="grading-answer-actions">
-        <button type="button" className="primary-button" disabled={saving || problems.length > 0} onClick={save}>
-          {saving ? "Saving…" : "Save policy"}
-        </button>
-        {message && (
-          <span className={message.tone === "ok" ? "form-message" : "take-error"} role="status">
-            {message.text}
-          </span>
-        )}
       </div>
     </div>
   );

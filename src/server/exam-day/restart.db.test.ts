@@ -166,12 +166,46 @@ describe.skipIf(!hasDb)("exam-day recovery", () => {
     expect(after.status).toBe(AttemptStatus.VOIDED);
   });
 
-  it("refuses to wipe an attempt that has already been marked", async () => {
+  it("restarts a marked attempt whose result is not out yet", async () => {
+    // The common case: force-submitting an objective paper auto-grades it at once,
+    // so a broken exam is usually already GRADED when someone asks to restart it.
     await policy({ allowRestart: true });
     const exam = await makeExam();
     const attempt = await makeAttempt(exam.id, AttemptStatus.GRADED);
 
-    await expect(restartAttempt(officer, attempt.id, { reason: "changed my mind" })).rejects.toThrow(/already been marked/i);
+    const result = await restartAttempt(officer, attempt.id, { reason: "machine died, auto-submitted" });
+
+    expect(result.withdrewReleasedResult).toBe(false);
+    const after = await prisma.attempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    expect(after.status).toBe(AttemptStatus.VOIDED);
+  });
+
+  it("refuses an invigilator on a result the candidate can already see", async () => {
+    await policy({ allowRestart: true, invigilatorCanRestart: true });
+    const exam = await makeExam();
+    const attempt = await makeAttempt(exam.id, AttemptStatus.GRADED);
+    await prisma.attempt.update({ where: { id: attempt.id }, data: { releasedAt: new Date() } });
+
+    await expect(restartAttempt(invigilator, attempt.id, { reason: "looked wrong" })).rejects.toThrow(
+      /already been released/i,
+    );
+    const after = await prisma.attempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    expect(after.status).toBe(AttemptStatus.GRADED);
+  });
+
+  it("lets an exam officer restart a released result, withdrawing it", async () => {
+    await policy({ allowRestart: true });
+    const exam = await makeExam();
+    const attempt = await makeAttempt(exam.id, AttemptStatus.GRADED);
+    await prisma.attempt.update({ where: { id: attempt.id }, data: { releasedAt: new Date() } });
+
+    const result = await restartAttempt(officer, attempt.id, { reason: "sat the wrong paper" });
+
+    expect(result.withdrewReleasedResult).toBe(true);
+    const after = await prisma.attempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    expect(after.status).toBe(AttemptStatus.VOIDED);
+    // The candidate can no longer see it.
+    expect(after.releasedAt).toBeNull();
   });
 
   it("refuses a second restart when only one is allowed, and permits it when two are", async () => {

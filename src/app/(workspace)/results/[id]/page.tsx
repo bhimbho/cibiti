@@ -90,9 +90,17 @@ export default async function AttemptReportPage({ params }: { params: Promise<{ 
           {/* Not offered once marked: a marked result may already be on a broadsheet,
               and withdrawing it is a separate decision. */}
           {/* Offered only to staff the policy would actually let through, rather than
-              showing a button that always fails. */}
-          {mayRestart && (attempt.status === "IN_PROGRESS" || attempt.status === "SUBMITTED") && (
-            <RestartButton attemptId={attempt.id} candidate={candidate.name} />
+              showing a button that always fails. Marked attempts included: a paper
+              broken by a dead machine is usually auto-graded before anyone asks. */}
+          {mayRestart && attempt.status !== "VOIDED" && (
+            <RestartButton
+              attemptId={attempt.id}
+              candidate={candidate.name}
+              withdrawsResult={report.released}
+            />
+          )}
+          {attempt.status === "VOIDED" && (
+            <span className="draft-hint">Voided — the candidate sat, or will sit, a different attempt</span>
           )}
           {report.viewer === "staff" && report.released && <span className="draft-hint">Released to candidate</span>}
           {/* The paper is a pure function of this seed, so a disputed draw can be

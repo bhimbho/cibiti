@@ -9,7 +9,16 @@ import { callApi } from "@/components/exam-builder/api";
  * reach: an attempt already submitted — force-submitted after a machine died, say —
  * where the candidate still needs to sit the paper.
  */
-export function RestartButton({ attemptId, candidate }: { attemptId: string; candidate: string }) {
+export function RestartButton({
+  attemptId,
+  candidate,
+  withdrawsResult = false,
+}: {
+  attemptId: string;
+  candidate: string;
+  /** The candidate can already see this result, so restarting takes it back. */
+  withdrawsResult?: boolean;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +31,10 @@ export function RestartButton({ attemptId, candidate }: { attemptId: string; can
         disabled={pending}
         onClick={async () => {
           setError(null);
-          if (!window.confirm(`Restart ${candidate}'s exam? This attempt is voided and they sit again with a new paper.`)) return;
+          const warning = withdrawsResult
+            ? ` ${candidate} can already see this result, and restarting withdraws it.`
+            : "";
+          if (!window.confirm(`Restart ${candidate}'s exam? This attempt is voided and they sit again with a new paper.${warning}`)) return;
           const reason = window.prompt("Reason (e.g. machine failed, power cut):");
           if (!reason?.trim()) return;
           setPending(true);
