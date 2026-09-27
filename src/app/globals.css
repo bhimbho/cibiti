@@ -297,6 +297,8 @@ a.data-row .link-button { pointer-events: none; }
 /* ───────── Viewing as another user ───────── */
 .view-as-banner { align-items: center; background: #fdf3e3; border-bottom: 1px solid #e5c98b; color: #7a5410; display: flex; flex-wrap: wrap; font-size: 12px; gap: 12px; justify-content: space-between; padding: 10px 26px; position: sticky; top: 0; z-index: 30; }
 .view-as-banner strong { font-weight: 800; }
+.view-as-banner.editing { background: #fbe9e3; border-bottom-color: #e0a08c; color: #8c3d27; }
+.view-as-banner.editing .view-as-stop { background: #8c3d27; }
 .view-as-stop { background: #7a5410; border: 0; border-radius: 5px; color: white; cursor: pointer; font-size: 11px; font-weight: 700; padding: 7px 11px; }
 .view-as-stop:disabled { cursor: not-allowed; opacity: .6; }
 .view-as-button { align-items: center; border: 0; cursor: pointer; display: inline-flex; gap: 8px; margin-top: 12px; }

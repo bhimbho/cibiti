@@ -5,9 +5,11 @@ import { requirePagePermission } from "@/server/page-auth";
 import { getOrgSettings } from "@/server/settings";
 import { gradeBands } from "@/server/grades/store";
 import { examDayPolicy } from "@/server/exam-day/store";
+import { impersonationMode } from "@/server/impersonation";
 import { FlagToggles } from "./flag-toggles";
 import { GradeScaleEditor } from "./grade-scale";
 import { ExamDayPolicyForm } from "./exam-day-policy";
+import { ImpersonationModeForm } from "./impersonation-mode";
 
 export const metadata: Metadata = { title: "Settings | Cibiti" };
 
@@ -18,6 +20,7 @@ export default async function SettingsPage() {
   const settings = await getOrgSettings(actor);
   const scale = await gradeBands(actor.orgId);
   const examDay = await examDayPolicy(actor.orgId);
+  const viewAs = await impersonationMode(actor.orgId);
 
   return (
     <main className="authoring-page">
@@ -45,6 +48,16 @@ export default async function SettingsPage() {
           wrong person signed in. Every restart and every minute added is recorded in the audit log.
         </p>
         <ExamDayPolicyForm policy={examDay.policy} isDefault={examDay.isDefault} />
+      </section>
+
+      <section className="panel settings-panel">
+        <p className="eyebrow">SUPPORT</p>
+        <h2>Viewing as a user</h2>
+        <p className="take-hint">
+          Administrators can open the app as any user in this organisation from that person&rsquo;s
+          page, without their password. Starting and stopping are always recorded in the audit log.
+        </p>
+        <ImpersonationModeForm mode={viewAs.mode} isDefault={viewAs.isDefault} />
       </section>
 
       <section className="panel settings-panel">

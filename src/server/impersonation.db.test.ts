@@ -169,6 +169,38 @@ describe.skipIf(!hasDb)("viewing as another user", () => {
     expect(await resolveImpersonation(admin)).toBeNull();
   });
 
+  it("is read-only until an administrator says otherwise", async () => {
+    const { impersonationMode } = await import("./impersonation");
+    const mode = await impersonationMode(orgId);
+    expect(mode).toEqual({ mode: "READ_ONLY", isDefault: true });
+  });
+
+  it("saves the editing setting, and records who changed it", async () => {
+    const { impersonationMode, setImpersonationMode } = await import("./impersonation");
+
+    const saved = await setImpersonationMode(admin, "EDIT");
+
+    expect(saved).toEqual({ mode: "EDIT", isDefault: false });
+    expect(await impersonationMode(orgId)).toMatchObject({ mode: "EDIT" });
+    const entry = await prisma.auditLog.findFirst({
+      where: { orgId, action: "impersonation-policy.set" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(entry?.actorId).toBe(admin.userId);
+    expect(entry?.after).toMatchObject({ mode: "EDIT" });
+
+    await setImpersonationMode(admin, "READ_ONLY");
+  });
+
+  it("refuses an exam officer, and refuses anyone in the middle of a view", async () => {
+    const { setImpersonationMode } = await import("./impersonation");
+    await expect(setImpersonationMode(officer, "EDIT")).rejects.toThrow(/only administrators/i);
+
+    // Raising your own permissions from inside a view is the move to prevent.
+    const viewing = { ...admin, viewAs: { realUserId: admin.userId, realName: "Ada Admin", startedAt: Date.now() } };
+    await expect(setImpersonationMode(viewing, "EDIT")).rejects.toThrow(/stop viewing as another user/i);
+  });
+
   it("stops, clearing the cookie and recording it", async () => {
     const { startImpersonation, stopImpersonation, resolveImpersonation } = await import("./impersonation");
     await startImpersonation(admin, candidateId);

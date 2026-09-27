@@ -6,6 +6,7 @@ import { AccommodationForm, ResetPassword } from "@/components/people/person-ext
 import { ViewAsButton } from "@/components/people/view-as-button";
 import { canAnywhere } from "@/server/authz";
 import { requirePagePermission } from "@/server/page-auth";
+import { impersonationMode } from "@/server/impersonation";
 import { getPersonForEditing, peopleFormOptions } from "@/server/people/mutate";
 
 export const metadata: Metadata = { title: "Person | Cibiti" };
@@ -15,7 +16,12 @@ const dateTime = new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "shor
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requirePagePermission("people:manage");
   const { id } = await params;
-  const [person, options] = await Promise.all([getPersonForEditing(actor, id), peopleFormOptions(actor)]);
+  const [person, options, viewAs] = await Promise.all([
+    getPersonForEditing(actor, id),
+    peopleFormOptions(actor),
+    impersonationMode(actor.orgId),
+  ]);
+  const viewAsMode = viewAs.mode;
   if (!person) notFound();
 
   const isCandidate = person.input.roles.includes("CANDIDATE");
@@ -41,8 +47,10 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               <p className="eyebrow">SUPPORT</p>
               <p className="take-hint">
                 See what this user sees — their dashboard, their exams, their results — without their
-                password. Nothing can be changed while you look, and both starting and stopping are
-                recorded in the audit log.
+                password. {viewAsMode === "EDIT"
+                  ? "Your organisation allows changes while viewing, so anything you do is saved to their account."
+                  : "Nothing can be changed while you look."}{" "}
+                Starting and stopping are recorded in the audit log.
               </p>
               <ViewAsButton userId={person.id} name={person.input.name} />
             </section>

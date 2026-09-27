@@ -588,3 +588,65 @@ test("administrator views the app as a candidate, read-only, then stops", async 
   await expect(page.locator(".dt tbody tr", { hasText: "impersonation.stop" }).first()).toBeVisible();
   await expect(page.locator(".dt tbody tr", { hasText: "impersonation.start" }).first()).toBeVisible();
 });
+
+
+test("editing while viewing as a user is a setting, and never covers sitting an exam", async ({ page }) => {
+  await signIn(page, "admin@cibiti.dev");
+
+  // Start from read-only whatever an earlier run left behind, so the test can be
+  // repeated against the same database.
+  await page.goto("/settings");
+  const editSwitch = page.getByRole("switch", { name: "Allow editing while viewing as a user" });
+  if ((await editSwitch.getAttribute("aria-checked")) === "true") {
+    await editSwitch.click();
+    await expect(page.getByText("Viewing is read-only again.")).toBeVisible();
+  }
+  await expect(editSwitch).toHaveAttribute("aria-checked", "false");
+
+  // View as the exam officer, who can normally manage courses.
+  await page.goto("/people");
+  await page.getByRole("textbox", { name: "Search name, email or matric number" }).fill("officer@cibiti.dev");
+  const officerRow = page.locator(".dt tbody tr", { hasText: "officer@cibiti.dev" });
+  await expect(officerRow).toHaveCount(1);
+  page.on("dialog", (dialog) => void dialog.accept());
+  await officerRow.getByRole("link", { name: "Emeka Officer" }).click();
+  await page.getByRole("button", { name: "View as this user" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Viewing as" })).toContainText("read-only");
+
+  const course = { code: `VA${Date.now() % 100000}`, title: "View-as course", credits: 2 };
+  const refused = await page.request.post("/api/courses", { data: course });
+  expect(refused.status()).toBe(403);
+  expect((await refused.json()).error).toMatch(/read-only/i);
+
+  // Stop, turn editing on, and view again. Wait for the banner to go: the cookie is
+  // cleared by the response, so navigating sooner arrives still viewing.
+  await page.getByRole("button", { name: "Stop viewing as them" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Viewing as|Editing as/ })).toHaveCount(0);
+  await page.goto("/settings");
+  await page.getByRole("switch", { name: "Allow editing while viewing as a user" }).click();
+  await expect(page.getByText("Editing allowed while viewing as a user.")).toBeVisible();
+
+  await page.goto("/people");
+  await page.getByRole("textbox", { name: "Search name, email or matric number" }).fill("officer@cibiti.dev");
+  await page.locator(".dt tbody tr", { hasText: "officer@cibiti.dev" }).getByRole("link", { name: "Emeka Officer" }).click();
+  await page.getByRole("button", { name: "View as this user" }).click();
+
+  // The banner changes its tune, and the same write now lands.
+  const editingBanner = page.getByRole("status").filter({ hasText: "Editing as" });
+  await expect(editingBanner).toContainText("changes are saved to their account");
+  const allowed = await page.request.post("/api/courses", { data: course });
+  expect(allowed.ok()).toBe(true);
+
+  // Sitting an exam stays impossible even so.
+  // PUT is how answers are saved; the guard refuses before the handler is reached.
+  const examWrite = await page.request.put("/api/attempts/any-attempt-id/responses", { data: { writes: [] } });
+  expect(examWrite.status()).toBe(403);
+  expect((await examWrite.json()).error).toMatch(/never permitted/i);
+
+  // Put the setting back, so the rest of the suite sees the default.
+  await editingBanner.getByRole("button", { name: "Stop viewing as them" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Viewing as|Editing as/ })).toHaveCount(0);
+  await page.goto("/settings");
+  await page.getByRole("switch", { name: "Allow editing while viewing as a user" }).click();
+  await expect(page.getByText("Viewing is read-only again.")).toBeVisible();
+});

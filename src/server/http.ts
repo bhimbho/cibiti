@@ -35,26 +35,24 @@ export function readSearchParams<T>(request: Request, schema: ZodType<T>): T {
 
 type Handler<C> = (request: Request, context: C) => Promise<Response>;
 
-/** Paths that must keep working while an administrator is viewing as someone else. */
-const IMPERSONATION_SAFE = ["/api/impersonation"];
-
 /**
  * Wraps a route handler so thrown HttpErrors and ZodErrors become JSON error
- * responses — and so nothing can be written while an administrator is viewing the
- * app as another user. Viewing is for seeing what they see; an administrator who
- * could write as a candidate could answer their exam.
+ * responses — and so a write made while an administrator is viewing the app as
+ * another user is checked against the organisation's setting first. The rule itself
+ * lives in impersonation-rules.ts.
  */
 export function route<C>(handler: Handler<C>): Handler<C> {
   return async (request, context) => {
     try {
-      if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+      const { isReadMethod, canWriteWhileViewing } = await import("./impersonation-rules");
+      if (!isReadMethod(request.method)) {
         const { getActor } = await import("./authz");
         const actor = await getActor();
-        const path = new URL(request.url).pathname;
-        if (actor?.viewAs && !IMPERSONATION_SAFE.some((safe) => path.startsWith(safe))) {
-          throw forbidden(
-            `You are viewing the app as ${actor.name}, which is read-only. Stop viewing as them to make changes.`,
-          );
+        if (actor?.viewAs) {
+          const { impersonationMode } = await import("./impersonation");
+          const { mode } = await impersonationMode(actor.orgId);
+          const decision = canWriteWhileViewing(mode, new URL(request.url).pathname, actor.name);
+          if (!decision.ok) throw forbidden(decision.reason);
         }
       }
       return await handler(request, context);

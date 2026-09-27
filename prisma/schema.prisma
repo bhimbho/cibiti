@@ -119,6 +119,7 @@ model Organization {
   memberships  Membership[]
   gradeBands   GradeBand[]
   examDayPolicy ExamDayPolicy?
+  impersonationPolicy ImpersonationPolicy?
   sessions     AcademicSession[]
   departments  Department[]
   levels       Level[]
@@ -343,6 +344,27 @@ model AssessmentComponent {
   exam   Exam?  @relation(fields: [examId], references: [id])
 
   @@map("assessment_component")
+}
+
+/// How much an administrator may do while viewing the app as another user.
+enum ImpersonationMode {
+  /// Look, change nothing. The safe default.
+  READ_ONLY
+  /// Act as them, so support can fix something in place. Sitting an exam is never
+  /// permitted, whatever the mode.
+  EDIT
+}
+
+/// Organisation-wide setting for "view as a user". A row exists only once an
+/// administrator has changed it; until then READ_ONLY applies.
+model ImpersonationPolicy {
+  orgId     String            @id
+  mode      ImpersonationMode @default(READ_ONLY)
+  updatedAt DateTime          @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("impersonation_policy")
 }
 
 /// What staff may do for a candidate whose exam went wrong: add time, or wipe the

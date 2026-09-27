@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { Role } from "@prisma/client";
+import { ImpersonationMode, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { audit } from "./audit";
 import { actorForUser, canAnywhere, type Actor } from "./authz";
@@ -22,6 +22,36 @@ import { badRequest, forbidden, notFound } from "./http";
  *    answer their exam, and no audit trail would make that acceptable.
  * 3. **It is audited at both ends**, with the administrator's id, not the target's.
  */
+
+/**
+ * How much a view allows. READ_ONLY until an administrator says otherwise, because a
+ * support tool that can write is a tool that can be misused quietly.
+ */
+export async function impersonationMode(orgId: string): Promise<{ mode: ImpersonationMode; isDefault: boolean }> {
+  const row = await prisma.impersonationPolicy.findUnique({ where: { orgId }, select: { mode: true } });
+  return row ? { mode: row.mode, isDefault: false } : { mode: ImpersonationMode.READ_ONLY, isDefault: true };
+}
+
+export async function setImpersonationMode(admin: Actor, mode: ImpersonationMode) {
+  if (!canAnywhere(admin, "org:manage")) throw forbidden("Only administrators can change this.");
+  // Not while viewing as somebody: raising your own permissions from inside a view
+  // is exactly the move this setting has to be protected from.
+  if (admin.viewAs) throw forbidden("Stop viewing as another user before changing this setting.");
+
+  const before = await impersonationMode(admin.orgId);
+  await prisma.$transaction(async (tx) => {
+    await tx.impersonationPolicy.upsert({
+      where: { orgId: admin.orgId },
+      create: { orgId: admin.orgId, mode },
+      update: { mode },
+    });
+    await audit(
+      { actor: admin, action: "impersonation-policy.set", entityType: "organization", entityId: admin.orgId, before: { mode: before.mode }, after: { mode } },
+      tx,
+    );
+  });
+  return impersonationMode(admin.orgId);
+}
 
 const COOKIE = "cibiti.view-as";
 /** An hour is long enough to look around and short enough to be forgotten safely. */

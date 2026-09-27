@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/sidebar";
 import { ViewingAsBanner } from "@/components/people/stop-view-as";
+import { impersonationMode } from "@/server/impersonation";
 import { navFor, primaryRoleLabel } from "@/components/nav";
 import { prisma } from "@/lib/prisma";
 import { permissionsFor } from "@/server/authz";
@@ -13,7 +14,13 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <div className="app-shell">
       <Sidebar name={actor.name} roleLabel={primaryRoleLabel(actor.roles)} orgName={org.name} nav={navFor(permissionsFor(actor))} />
       <div className="page-wrap">
-        {actor.viewAs && <ViewingAsBanner name={actor.name} realName={actor.viewAs.realName} />}
+        {actor.viewAs && (
+          <ViewingAsBanner
+            name={actor.name}
+            realName={actor.viewAs.realName}
+            canEdit={(await impersonationMode(actor.orgId)).mode === "EDIT"}
+          />
+        )}
         {children}
       </div>
     </div>

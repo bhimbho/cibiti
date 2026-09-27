@@ -22,7 +22,7 @@ Computer-based testing for **universities, CBT centres and schools**, built to r
 - **Academics**: departments, levels, groups/arms, sessions and terms, venues and labs, courses with registration by matric number.
 - **Invigilation**: live console — add time, move a candidate to another computer, submit an exam, or restart it when a machine or the power fails. Every action is audited.
 - **Exam-day policy**: administrators decide whether exams may be restarted at all, whether invigilators may restart or add time, how many restarts a candidate gets, and the ceiling on added time per attempt. Restarting is off until switched on.
-- **View as a user**: an administrator can see the app exactly as any of their users does — their dashboard, exams and results — without a password or a reset. It is read-only, the banner never leaves the screen, and both starting and stopping are audited.
+- **View as a user**: an administrator can see the app exactly as any of their users does — their dashboard, exams and results — without a password or a reset. Read-only by default; a setting allows editing as them for support work, and each change is recorded as theirs with the administrator named alongside. Answering or submitting a candidate's exam is refused either way. The banner never leaves the screen, and starting and stopping are audited.
 - **Settings**: exam-day policy, grading scale, feature-flag switches, audit log.
 
 Next: more question types and import/export formats (DOCX, XLSX, QTI), rubrics and double marking, and the proctoring levels above L1 (Phases 3, 4, 6–7).
