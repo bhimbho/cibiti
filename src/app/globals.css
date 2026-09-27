@@ -294,6 +294,11 @@ a.data-row .link-button { pointer-events: none; }
 .picker-foot .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 1000px) { .builder-layout { grid-template-columns: 1fr; } .checks-panel { position: static; } .form-row.four, .form-row.three { grid-template-columns: 1fr 1fr; } }
 
+/* ───────── Assessment components ───────── */
+.component-list { display: grid; gap: 8px; margin: 12px 0 4px; }
+.component-row { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr) auto; }
+.component-row input, .component-row select { width: 100%; }
+
 /* ───────── Grading scale ───────── */
 .grade-scale { display: grid; gap: 8px; margin-top: 14px; }
 .grade-scale-head, .grade-scale-row { display: grid; gap: 10px; grid-template-columns: 90px 110px 120px auto; }

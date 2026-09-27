@@ -453,3 +453,40 @@ test("administrator edits the grading scale and results show the letter", async 
   const gradeCells = page.locator(".dt tbody tr td").filter({ hasText: /^[A-F]$/ });
   await expect(gradeCells.first()).toBeVisible();
 });
+
+test("exam officer weights a course and files its broadsheet", async ({ page }) => {
+  await signIn(page, "officer@cibiti.dev");
+  await page.goto("/academics/courses");
+  await page.getByRole("link", { name: "CSC101", exact: true }).click();
+
+  // Split the course between a CA and the exam that already exists on it.
+  await expect(page.getByRole("heading", { name: "Components" })).toBeVisible();
+  await page.getByRole("button", { name: "Add component" }).click();
+  await page.getByLabel("Component 1 name").fill("Continuous assessment");
+  await page.getByLabel("Component 1 weight").fill("30");
+  await page.getByRole("button", { name: "Add component" }).click();
+  await page.getByLabel("Component 2 name").fill("Examination");
+  await page.getByLabel("Component 2 weight").fill("70");
+  await page.getByLabel("Component 2 exam").selectOption({ label: "CSC101 Continuous Assessment 1" });
+  await page.getByRole("button", { name: "Save components" }).click();
+  await expect(page.getByText("Components saved.")).toBeVisible();
+
+  // Weights that do not add to 100 are refused before they can be saved.
+  await page.getByLabel("Component 1 weight").fill("40");
+  await expect(page.getByText(/add up to 110%/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save components" })).toBeDisabled();
+
+  await page.getByRole("link", { name: "Broadsheet" }).click();
+  await expect(page).toHaveURL(/\/broadsheet$/);
+  await expect(page.getByText("BROADSHEET", { exact: true })).toBeVisible();
+  // One column per component, carrying its weight, plus the totals.
+  await expect(page.getByRole("columnheader", { name: /Continuous assessment/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /Examination/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Grade" })).toBeVisible();
+
+  // The CSV download is the artefact a registry files.
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Download CSV" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/CSC101-broadsheet\.csv/);
+});
