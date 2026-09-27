@@ -99,6 +99,19 @@ async function main() {
         await make(subject.id, { type: "short-answer", topicId: fundamentals.id, difficulty: Difficulty.HARD, points: 2, text: "Name the step of the fetch–decode–execute cycle in which the CPU interprets an instruction.", interaction: { maxLength: 60 }, scoring: { acceptedAnswers: ["decode", "decoding"], maxTypos: 1 } }),
       ];
 
+      // Marked by hand: the scorer cannot judge a sentence, so it sends the answer
+      // to the marking queue instead of calling it wrong.
+      await make(subject.id, {
+        type: "short-answer",
+        topicId: fundamentals.id,
+        points: 4,
+        difficulty: Difficulty.HARD,
+        text: "In one sentence, explain what an operating system does.",
+        interaction: { maxLength: 200 },
+        scoring: { acceptedAnswers: ["manages hardware and software resources"], manualReviewUnmatched: true },
+        explanation: "Look for the idea of managing hardware resources and providing services to programs.",
+      });
+
       // Pool for the random section.
       await make(subject.id, { type: "single-choice", topicId: networking.id, text: "Which device forwards packets between different networks?", interaction: choice("Switch", "Router", "Hub", "Repeater"), scoring: { correctOptionId: "b" } });
       await make(subject.id, { type: "true-false", topicId: networking.id, text: "An IPv4 address is 32 bits long.", interaction: {}, scoring: { correct: "true" } });

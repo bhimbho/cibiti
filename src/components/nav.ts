@@ -1,7 +1,7 @@
 import type { Role } from "@prisma/client";
 import type { Permission } from "@/server/authz";
 
-export type NavIcon = "overview" | "questions" | "exams" | "people" | "academics" | "results" | "invigilation" | "settings";
+export type NavIcon = "overview" | "questions" | "exams" | "people" | "academics" | "results" | "grading" | "invigilation" | "settings";
 
 export type NavItem = { href: string; label: string; icon: NavIcon };
 
@@ -12,6 +12,7 @@ const navigation: (NavItem & { permission?: Permission[] })[] = [
   { href: "/exams", label: "Exams", icon: "exams", permission: ["exam:write"] },
   { href: "/questions", label: "Question bank", icon: "questions", permission: ["question:read"] },
   { href: "/results", label: "Results", icon: "results", permission: ["results:read", "attempt:take"] },
+  { href: "/grading", label: "Marking", icon: "grading", permission: ["grade:write"] },
   { href: "/people", label: "People", icon: "people", permission: ["people:manage"] },
   { href: "/academics", label: "Academics", icon: "academics", permission: ["academics:manage"] },
   { href: "/invigilation", label: "Invigilation", icon: "invigilation", permission: ["invigilate"] },

@@ -294,6 +294,15 @@ a.data-row .link-button { pointer-events: none; }
 .picker-foot .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 1000px) { .builder-layout { grid-template-columns: 1fr; } .checks-panel { position: static; } .form-row.four, .form-row.three { grid-template-columns: 1fr 1fr; } }
 
+/* ───────── Marking queue ───────── */
+.grading-list { display: grid; gap: 14px; margin-top: 24px; }
+.grading-answer { padding: 18px 20px; }
+.grading-answer-head { align-items: baseline; display: flex; gap: 10px; margin-bottom: 12px; }
+.grading-answer-head strong { font-size: 13px; }
+.grading-answer-body { background: #f7faf9; border-left: 3px solid #cbd8d4; border-radius: 4px; color: var(--ink); font-size: 13px; margin: 0 0 12px; padding: 12px 14px; white-space: pre-wrap; }
+.grading-answer-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.grading-answer-actions .take-error { margin: 0; }
+
 /* ───────── Results ───────── */
 .status-pill.a-in_progress { background: #e8eef1; color: #4a6b7a; }
 .status-pill.a-submitted { background: #fdf3e3; color: #9a6a1f; }

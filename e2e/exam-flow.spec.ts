@@ -37,7 +37,7 @@ test("candidate answers, survives a reload, and submits", async ({ page }) => {
 
   for (let i = 0; i < total; i++) {
     await answerCurrentQuestion(page);
-    if (i < total - 1) await page.getByRole("button", { name: "Next" }).click();
+    if (i < total - 1) await page.getByRole("button", { name: "Next", exact: true }).click();
   }
   await expect(page.getByRole("status").filter({ hasText: "All answers saved" })).toBeVisible({ timeout: 15_000 });
 
@@ -333,4 +333,72 @@ test("administrator toggles a feature flag and it is audited", async ({ page }) 
 test("health endpoint reports every dependency", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(await res.json()).toEqual({ status: "ok", database: "ok", queue: "ok", storage: "ok" });
+});
+
+test("marker clears a flagged answer and the candidate's result appears", async ({ page, browser }) => {
+  const title = `E2E Marking ${Date.now()}`;
+  const answer = "It shares the computer between programs.";
+
+  // An exam holding the one seeded question a scorer cannot judge.
+  await signIn(page, "officer@cibiti.dev");
+  await page.goto("/exams/new");
+  await page.getByLabel("Exam title", { exact: true }).fill(title);
+  await page.getByRole("button", { name: "Create exam" }).click();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add questions" }).click();
+  await page.getByRole("textbox", { name: "Search question text" }).fill("operating system does");
+  await page.locator(".picker-row", { hasText: "explain what an operating system does" }).locator("input").check();
+  await page.getByRole("button", { name: "Add 1 question" }).click();
+  await expect(page.locator(".builder-item", { hasText: "operating system does" })).toBeVisible();
+
+  // Release as soon as marking finishes, so the candidate's score is what proves
+  // the attempt was totalled and closed. Saving remounts the form, so the value
+  // surviving that is the confirmation.
+  await page.getByRole("tab", { name: "Settings" }).click();
+  await page.getByLabel("Release results").selectOption("IMMEDIATE");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByLabel("Release results")).toHaveValue("IMMEDIATE", { timeout: 15_000 });
+
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByText("Exam published.")).toBeVisible();
+
+  // The candidate answers in their own words: nothing the scorer can match.
+  const candidateContext = await browser.newContext();
+  const candidatePage = await candidateContext.newPage();
+  await signIn(candidatePage, "CSC/2026/002");
+  await candidatePage.locator(".exam-row", { hasText: title }).getByRole("link", { name: /Begin/ }).click();
+  await candidatePage.getByRole("button", { name: "Start exam" }).click();
+  await candidatePage.locator("[data-question] input.take-text-input").fill(answer);
+  await expect(candidatePage.getByRole("status").filter({ hasText: "All answers saved" })).toBeVisible({ timeout: 15_000 });
+  await candidatePage.getByRole("button", { name: "Review & submit" }).click();
+  await candidatePage.getByRole("button", { name: "Submit exam" }).click();
+  await candidatePage.getByRole("button", { name: "Submit now" }).click();
+  await expect(candidatePage.getByText("EXAM SUBMITTED")).toBeVisible();
+
+  // It waits in the marking queue rather than being scored wrong.
+  await page.getByRole("link", { name: "Marking" }).click();
+  await expect(page).toHaveURL(/\/grading$/);
+  const queueRow = page.locator(".activity-item", { hasText: "operating system does" });
+  await expect(queueRow).toBeVisible();
+  await queueRow.getByRole("link", { name: /Mark \d+/ }).click();
+
+  const card = page.locator(".grading-answer", { hasText: answer });
+  await expect(card).toBeVisible();
+  // Anonymous by default: the candidate's name is not on the script.
+  await expect(card).toContainText("Anonymous");
+  await expect(card).toContainText("Answer key:");
+  await card.getByRole("button", { name: "Full marks" }).click();
+  await card.getByRole("button", { name: "Save mark" }).click();
+  // The marked answer leaves the unmarked list, so the confirmation is the proof.
+  await expect(page.getByText("1 mark saved.")).toBeVisible();
+  await expect(page.getByText("Nothing left to mark for this question.")).toBeVisible();
+
+  // Marking the last answer totals the attempt, and IMMEDIATE publishes it.
+  await candidatePage.goto("/results");
+  const resultRow = candidatePage.locator(".activity-item", { hasText: title });
+  await expect(resultRow).toBeVisible();
+  await expect(resultRow.getByRole("link", { name: /100% · View/ })).toBeVisible();
+
+  await candidateContext.close();
 });

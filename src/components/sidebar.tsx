@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, ClipboardList, Database, LayoutDashboard, Settings, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardList, Database, LayoutDashboard, PenLine, Settings, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
 import type { NavIcon, NavItem } from "@/components/nav";
 
@@ -12,6 +12,7 @@ const icons: Record<NavIcon, LucideIcon> = {
   people: Users,
   academics: BookOpen,
   results: BarChart3,
+  grading: PenLine,
   invigilation: ShieldCheck,
   settings: Settings,
 };

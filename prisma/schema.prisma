@@ -782,10 +782,16 @@ model ItemGrade {
   graderId      String?
   comment       String?
   gradedAt      DateTime    @default(now())
+  // Set by auto-grading when a scorer cannot decide (an unmatched short answer,
+  // an essay). Cleared when a human marks it, which is what the grading queue
+  // works through — recomputing it per request would mean scoring every item of
+  // every submitted attempt just to build a list.
+  needsManual   Boolean     @default(false)
 
   item   AttemptItem @relation(fields: [attemptItemId], references: [id], onDelete: Cascade)
   grader User?       @relation(fields: [graderId], references: [id])
 
+  @@index([needsManual])
   @@map("item_grade")
 }
 

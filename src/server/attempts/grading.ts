@@ -41,6 +41,7 @@ export async function finalizeAttempt(tx: Tx, attemptId: string, submissionType:
       method: GradeMethod.AUTO,
       detail: result.detail ? (toJson(result.detail) as Prisma.InputJsonValue) : Prisma.JsonNull,
       gradedAt: now,
+      needsManual: result.needsManualGrading,
     };
     await tx.itemGrade.upsert({ where: { attemptItemId: item.id }, create: { attemptItemId: item.id, ...data }, update: data });
   }
