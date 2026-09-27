@@ -44,6 +44,18 @@ export async function setExamDayPolicy(actor: Actor, input: ExamDayPolicy) {
   return examDayPolicy(actor.orgId);
 }
 
+/**
+ * Whether this actor could restart *something* — role plus policy, ignoring any
+ * particular attempt. Screens use it to decide whether to offer the action at all;
+ * the attempt's own state and the restart count are checked when it is used.
+ */
+export function mayRestartAtAll(actor: Actor, policy: ExamDayPolicy): boolean {
+  if (!policy.allowRestart) return false;
+  const standing = standingOf(actor);
+  if (standing.canManageExams) return true;
+  return standing.canInvigilate && policy.invigilatorCanRestart;
+}
+
 /** What the actor may do on the exam floor, in the terms the policy is written in. */
 export function standingOf(actor: Actor): Standing {
   return {

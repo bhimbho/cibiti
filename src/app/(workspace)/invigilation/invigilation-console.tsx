@@ -23,7 +23,7 @@ function formatLeft(ms: number) {
   return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function InvigilationConsole({ data, examId }: { data: Data; examId: string }) {
+export function InvigilationConsole({ data, examId, canRestart }: { data: Data; examId: string; canRestart: boolean }) {
   const router = useRouter();
   const [now, setNow] = useState<number | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -142,7 +142,9 @@ export function InvigilationConsole({ data, examId }: { data: Data; examId: stri
                       <button type="button" className="icon-btn" aria-label={`Add time for ${row.candidate}`} title="Add time" onClick={() => extend(row)}><Clock size={14} /></button>
                       <button type="button" className="icon-btn" aria-label={`Move ${row.candidate} to another computer`} title="Move to another computer" onClick={() => release(row)}><MonitorSmartphone size={14} /></button>
                       <Link className="icon-btn" aria-label={`Open ${row.candidate}'s report`} title="Open report" href={`/results/${row.id}`}><FileText size={14} /></Link>
-                      <button type="button" className="icon-btn icon-btn--danger" aria-label={`Restart ${row.candidate}'s exam`} title="Restart exam" onClick={() => restart(row)}><RotateCcw size={14} /></button>
+                      {canRestart && (
+                        <button type="button" className="icon-btn icon-btn--danger" aria-label={`Restart ${row.candidate}'s exam`} title="Restart exam" onClick={() => restart(row)}><RotateCcw size={14} /></button>
+                      )}
                       <button type="button" className="icon-btn icon-btn--danger" aria-label={`Submit ${row.candidate}'s exam now`} title="Submit now" onClick={() => forceSubmit(row)}><LogOut size={14} /></button>
                     </span>
                   </td>

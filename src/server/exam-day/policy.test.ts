@@ -119,3 +119,22 @@ describe("policyProblems", () => {
     );
   });
 });
+
+describe("who the settings screen adds up to", () => {
+  // The same matrix the Settings copy promises, kept honest in one place: the master
+  // switch beats everything, officers pass on their own, invigilators need their own
+  // switch, and everyone else is out.
+  const cases: { policy: Partial<ExamDayPolicy>; standing: Standing; label: string; allowed: boolean }[] = [
+    { policy: {}, standing: officer, label: "officer, restarts off", allowed: false },
+    { policy: { allowRestart: true }, standing: officer, label: "officer, restarts on", allowed: true },
+    { policy: { allowRestart: true }, standing: invigilator, label: "invigilator, their switch off", allowed: false },
+    { policy: { allowRestart: true, invigilatorCanRestart: true }, standing: invigilator, label: "invigilator, their switch on", allowed: true },
+    { policy: { allowRestart: true, invigilatorCanRestart: true }, standing: outsider, label: "neither standing", allowed: false },
+  ];
+
+  for (const { policy: patch, standing, label, allowed } of cases) {
+    it(`${allowed ? "allows" : "refuses"}: ${label}`, () => {
+      expect(canRestartAttempt(policy(patch), standing, 0).ok).toBe(allowed);
+    });
+  }
+});
