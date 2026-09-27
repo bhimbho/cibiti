@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clock, FileText, LogOut, MonitorSmartphone } from "lucide-react";
+import { Clock, FileText, LogOut, MonitorSmartphone, RotateCcw } from "lucide-react";
 import { callApi } from "@/components/exam-builder/api";
 import type { LiveAttempt } from "@/server/invigilation";
 
@@ -62,6 +62,15 @@ export function InvigilationConsole({ data, examId }: { data: Data; examId: stri
   function release(row: LiveAttempt) {
     if (!window.confirm(`Allow ${row.candidate} to continue on a different computer?`)) return;
     void act(`/api/attempts/${row.id}/release-device`, {}, `${row.candidate} can now sign in on another computer to continue.`);
+  }
+
+  function restart(row: LiveAttempt) {
+    // Two steps on purpose: this throws away what the candidate has written, and the
+    // reason is what makes the decision reviewable afterwards.
+    if (!window.confirm(`Restart ${row.candidate}'s exam? Their current answers are voided and they sit again with a new paper.`)) return;
+    const reason = window.prompt("Reason (e.g. machine failed, power cut):");
+    if (!reason?.trim()) return;
+    void act(`/api/attempts/${row.id}/restart`, { reason }, `${row.candidate} can start the exam again.`);
   }
 
   function forceSubmit(row: LiveAttempt) {
@@ -133,6 +142,7 @@ export function InvigilationConsole({ data, examId }: { data: Data; examId: stri
                       <button type="button" className="icon-btn" aria-label={`Add time for ${row.candidate}`} title="Add time" onClick={() => extend(row)}><Clock size={14} /></button>
                       <button type="button" className="icon-btn" aria-label={`Move ${row.candidate} to another computer`} title="Move to another computer" onClick={() => release(row)}><MonitorSmartphone size={14} /></button>
                       <Link className="icon-btn" aria-label={`Open ${row.candidate}'s report`} title="Open report" href={`/results/${row.id}`}><FileText size={14} /></Link>
+                      <button type="button" className="icon-btn icon-btn--danger" aria-label={`Restart ${row.candidate}'s exam`} title="Restart exam" onClick={() => restart(row)}><RotateCcw size={14} /></button>
                       <button type="button" className="icon-btn icon-btn--danger" aria-label={`Submit ${row.candidate}'s exam now`} title="Submit now" onClick={() => forceSubmit(row)}><LogOut size={14} /></button>
                     </span>
                   </td>

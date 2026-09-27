@@ -490,3 +490,50 @@ test("exam officer weights a course and files its broadsheet", async ({ page }) 
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/CSC101-broadsheet\.csv/);
 });
+
+test("administrator allows restarts and an invigilator rescues a candidate", async ({ page, browser }) => {
+  // Restarting is off by default, so the administrator turns it on first.
+  await signIn(page, "admin@cibiti.dev");
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Recovery and extra time" })).toBeVisible();
+  await expect(page.getByText(/exams cannot be restarted/i)).toBeVisible();
+
+  await page.getByRole("switch", { name: "Allow exams to be restarted" }).click();
+  await page.getByRole("switch", { name: "Invigilators may restart" }).click();
+  await page.getByRole("button", { name: "Save policy" }).click();
+  await expect(page.getByText("Exam-day policy saved.")).toBeVisible();
+
+  // A candidate starts the practice quiz and gets stuck.
+  const candidateContext = await browser.newContext();
+  const candidatePage = await candidateContext.newPage();
+  await signIn(candidatePage, "CSC/2026/001");
+  await candidatePage.locator(".exam-row", { hasText: "General Studies Practice Quiz" }).getByRole("link", { name: /Begin|Continue/ }).click();
+  await candidatePage.getByRole("button", { name: "Start exam" }).click();
+  await expect(candidatePage.getByText(/Question 1 of \d+/)).toBeVisible();
+
+  // The invigilator restarts them from the console.
+  const invigilatorContext = await browser.newContext();
+  const invigilator = await invigilatorContext.newPage();
+  await signIn(invigilator, "invigilator@cibiti.dev");
+  await invigilator.getByRole("link", { name: "Invigilation" }).click();
+  const row = invigilator.locator("tbody tr", { hasText: "CSC/2026/001" });
+  await expect(row).toBeVisible();
+
+  // Confirm, then a reason: the reason is what makes the decision reviewable.
+  invigilator.on("dialog", (dialog) =>
+    void dialog.accept(dialog.type() === "prompt" ? "Machine failed mid-paper" : ""),
+  );
+  await row.getByRole("button", { name: /Restart .*'s exam/ }).click();
+  await expect(invigilator.getByText(/can start the exam again/i)).toBeVisible();
+  // The voided attempt is no longer live, so it leaves the console.
+  await expect(row).toHaveCount(0);
+
+  // The candidate can sit the exam again, from the beginning.
+  await candidatePage.goto("/");
+  await expect(
+    candidatePage.locator(".exam-row", { hasText: "General Studies Practice Quiz" }).getByRole("link", { name: "Begin" }),
+  ).toBeVisible();
+
+  await candidateContext.close();
+  await invigilatorContext.close();
+});

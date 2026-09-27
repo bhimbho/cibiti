@@ -5,7 +5,9 @@ import { audit } from "./audit";
 import type { Actor } from "./authz";
 import { computeDeadline, SUBMIT_GRACE_MS } from "./attempts/deadline";
 import { finalizeAttempt } from "./attempts/grading";
-import { conflict, notFound } from "./http";
+import { conflict, forbidden, notFound } from "./http";
+import { canExtendAttempt } from "./exam-day/policy";
+import { examDayPolicy, standingOf } from "./exam-day/store";
 import { scheduleAutoSubmit } from "./queue";
 
 export type Connection = "online" | "idle" | "offline";
@@ -118,6 +120,18 @@ export const extendSchema = z.object({
 /** Add time (e.g. after a power cut). The server deadline moves and auto-submit is rescheduled. */
 export async function extendAttempt(actor: Actor, attemptId: string, input: z.infer<typeof extendSchema>) {
   const attempt = await loadLiveAttempt(actor, attemptId);
+
+  // Bounded by the organisation's exam-day policy: unlimited extra time, granted by
+  // anyone on the floor, is not the same exam the rest of the cohort sat.
+  const { policy } = await examDayPolicy(actor.orgId);
+  const decision = canExtendAttempt(
+    policy,
+    standingOf(actor),
+    Math.round(attempt.timeExtensionSec / 60),
+    input.minutes,
+  );
+  if (!decision.ok) throw forbidden(decision.reason);
+
   const accommodation = await prisma.accommodation.findFirst({
     where: { userId: attempt.userId, OR: [{ examId: attempt.examId }, { examId: null }] },
     orderBy: { examId: { sort: "desc", nulls: "last" } },

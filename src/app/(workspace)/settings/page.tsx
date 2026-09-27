@@ -4,8 +4,10 @@ import { canAnywhere } from "@/server/authz";
 import { requirePagePermission } from "@/server/page-auth";
 import { getOrgSettings } from "@/server/settings";
 import { gradeBands } from "@/server/grades/store";
+import { examDayPolicy } from "@/server/exam-day/store";
 import { FlagToggles } from "./flag-toggles";
 import { GradeScaleEditor } from "./grade-scale";
+import { ExamDayPolicyForm } from "./exam-day-policy";
 
 export const metadata: Metadata = { title: "Settings | Cibiti" };
 
@@ -15,6 +17,7 @@ export default async function SettingsPage() {
   const actor = await requirePagePermission("flags:manage");
   const settings = await getOrgSettings(actor);
   const scale = await gradeBands(actor.orgId);
+  const examDay = await examDayPolicy(actor.orgId);
 
   return (
     <main className="authoring-page">
@@ -32,6 +35,16 @@ export default async function SettingsPage() {
         <h2>Optional features</h2>
         <p className="take-hint">These features are fully built but off by default. Turning one on takes effect immediately for new attempts and is recorded in the audit log.</p>
         <FlagToggles flags={settings.flags} />
+      </section>
+
+      <section className="panel settings-panel">
+        <p className="eyebrow">EXAM DAY</p>
+        <h2>Recovery and extra time</h2>
+        <p className="take-hint">
+          What staff may do for a candidate whose exam goes wrong — a dead machine, a power cut, the
+          wrong person signed in. Every restart and every minute added is recorded in the audit log.
+        </p>
+        <ExamDayPolicyForm policy={examDay.policy} isDefault={examDay.isDefault} />
       </section>
 
       <section className="panel settings-panel">

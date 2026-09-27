@@ -118,6 +118,7 @@ model Organization {
   users        User[]
   memberships  Membership[]
   gradeBands   GradeBand[]
+  examDayPolicy ExamDayPolicy?
   sessions     AcademicSession[]
   departments  Department[]
   levels       Level[]
@@ -342,6 +343,29 @@ model AssessmentComponent {
   exam   Exam?  @relation(fields: [examId], references: [id])
 
   @@map("assessment_component")
+}
+
+/// What staff may do for a candidate whose exam went wrong: add time, or wipe the
+/// attempt and let them sit again. Both are powerful — a restart destroys work —
+/// so an institution decides who may do them and within what limits.
+model ExamDayPolicy {
+  orgId String @id
+  /// Master switch. With this off nobody can restart an attempt, administrators
+  /// included, so an institution can forbid it outright.
+  allowRestart              Boolean @default(false)
+  /// Whether invigilators may restart, as well as exam officers and administrators.
+  invigilatorCanRestart     Boolean @default(false)
+  /// Restarts allowed per candidate per exam, counting voided attempts.
+  maxRestartsPerCandidate   Int     @default(1)
+  /// Whether invigilators may add time. Officers and administrators always may.
+  invigilatorCanExtend      Boolean @default(true)
+  /// Ceiling on added time per attempt, in minutes. 0 means no added time at all.
+  maxExtraMinutesPerAttempt Int     @default(60)
+  updatedAt                 DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("exam_day_policy")
 }
 
 /// One row of the organisation's grading scale, e.g. "A, 70% and above, 5 points".

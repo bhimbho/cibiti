@@ -5,6 +5,7 @@ import { HttpError } from "@/server/http";
 import { requirePageActor } from "@/server/page-auth";
 import { getAttemptReport, type AttemptReport } from "@/server/results/report";
 import { ReleaseButton } from "./release-button";
+import { RestartButton } from "./restart-button";
 
 export const metadata: Metadata = { title: "Attempt report | Cibiti" };
 
@@ -83,6 +84,11 @@ export default async function AttemptReportPage({ params }: { params: Promise<{ 
             <strong className="muted-score">{attempt.status === "IN_PROGRESS" ? "In progress" : "Awaiting marking"}</strong>
           )}
           {report.viewer === "staff" && attempt.status === "GRADED" && !report.released && <ReleaseButton attemptId={attempt.id} />}
+          {/* Not offered once marked: a marked result may already be on a broadsheet,
+              and withdrawing it is a separate decision. */}
+          {report.viewer === "staff" && (attempt.status === "IN_PROGRESS" || attempt.status === "SUBMITTED") && (
+            <RestartButton attemptId={attempt.id} candidate={candidate.name} />
+          )}
           {report.viewer === "staff" && report.released && <span className="draft-hint">Released to candidate</span>}
           {/* The paper is a pure function of this seed, so a disputed draw can be
               reproduced rather than argued about. */}

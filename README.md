@@ -7,6 +7,7 @@ Computer-based testing for **universities, CBT centres and schools**, built to r
 - **Resilient exam delivery**: attempts resume after a refresh, crash or network drop; answers autosave within a second with an offline queue; the server owns the deadline and a background worker auto-submits expired attempts.
 - **Candidate exam screen**: one question per page, question palette, flag for review, review screen, keyboard shortcuts (A–E, N, P, F), server-synced timer.
 - **Question types**: single choice, multiple response (all-or-nothing, partial, right-minus-wrong), true/false and short answer, each with pure, unit-tested scoring.
+- **Paper randomisation**: draws, question order and option order all derive from a 128-bit seed taken from the OS CSPRNG and stored with the attempt, so a disputed paper can be reproduced exactly. Staff see the seed on the attempt report.
 - **Exams**: sections with fixed questions or questions drawn at random from the bank, shuffling, negative marking, sittings with access codes and IP allowlists, accommodations (extra time), release policies.
 - **Integrity**: every focus, fullscreen, clipboard and network event is logged. Enforcement is built but off unless the `proctoring` feature flag is enabled.
 - **Question bank & editor**: searchable table with bulk approve/retire; editor with images, subjects and topics, versioning, and a live candidate preview that checks the answer.
@@ -19,7 +20,9 @@ Computer-based testing for **universities, CBT centres and schools**, built to r
 - **Broadsheets**: courses carry weighted assessment components (CA + exam); the broadsheet compiles every registered candidate with weighted totals, grades and points, and downloads as CSV.
 - **People**: accounts with roles and generated one-time passwords, extra-time accommodations, CSV import in a background job.
 - **Academics**: departments, levels, groups/arms, sessions and terms, venues and labs, courses with registration by matric number.
-- **Invigilation & settings**: live console (add time, move computer, submit), feature-flag switches, audit log.
+- **Invigilation**: live console — add time, move a candidate to another computer, submit an exam, or restart it when a machine or the power fails. Every action is audited.
+- **Exam-day policy**: administrators decide whether exams may be restarted at all, whether invigilators may restart or add time, how many restarts a candidate gets, and the ceiling on added time per attempt. Restarting is off until switched on.
+- **Settings**: exam-day policy, grading scale, feature-flag switches, audit log.
 
 Next: more question types and import/export formats (DOCX, XLSX, QTI), rubrics and double marking, and the proctoring levels above L1 (Phases 3, 4, 6–7).
 

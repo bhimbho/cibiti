@@ -294,6 +294,11 @@ a.data-row .link-button { pointer-events: none; }
 .picker-foot .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 1000px) { .builder-layout { grid-template-columns: 1fr; } .checks-panel { position: static; } .form-row.four, .form-row.three { grid-template-columns: 1fr 1fr; } }
 
+/* ───────── Exam-day policy ───────── */
+.policy-form { display: grid; gap: 4px; margin-top: 14px; }
+.policy-form .form-row { margin-top: 12px; }
+.policy-form .form-row label { display: grid; gap: 4px; }
+
 /* ───────── Assessment components ───────── */
 .component-list { display: grid; gap: 8px; margin: 12px 0 4px; }
 .component-row { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr) auto; }
