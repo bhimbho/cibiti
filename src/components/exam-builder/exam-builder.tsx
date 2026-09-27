@@ -80,6 +80,9 @@ export function ExamBuilder({ data, canPublish }: Props) {
           {canPublish && settings.status === "CLOSED" && (
             <button className="outline-button" disabled={busy} onClick={() => run(`/api/exams/${settings.id}/status`, "POST", { action: "publish" }, "Exam reopened.")}>Reopen</button>
           )}
+          {attemptCount > 0 && (
+            <a className="outline-button" href={`/exams/${settings.id}/stats`}>Statistics</a>
+          )}
           <button className="icon-btn" aria-label="Duplicate exam" title="Duplicate" disabled={busy} onClick={duplicate}><Copy size={15} /></button>
           {attemptCount === 0 && <button className="icon-btn icon-btn--danger" aria-label="Delete exam" title="Delete" disabled={busy} onClick={remove}><Trash2 size={15} /></button>}
         </div>

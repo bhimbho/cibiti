@@ -402,3 +402,31 @@ test("marker clears a flagged answer and the candidate's result appears", async 
 
   await candidateContext.close();
 });
+
+test("staff read exam statistics and item analysis", async ({ page }) => {
+  await signIn(page, "officer@cibiti.dev");
+  await page.goto("/results");
+
+  // The practice quiz is the exam the suite's candidates have actually sat.
+  await page.locator(".dt-menu summary", { hasText: "Exam" }).click();
+  await page.getByRole("checkbox", { name: "General Studies Practice Quiz" }).check();
+  // The filter writes the exam id into the URL asynchronously.
+  await expect(page).toHaveURL(/exam=/);
+  const examId = new URL(page.url()).searchParams.get("exam");
+  expect(examId).toBeTruthy();
+
+  await page.goto(`/exams/${examId}/stats`);
+  await expect(page.getByText("STATISTICS", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "General Studies Practice Quiz" })).toBeVisible();
+
+  // A cohort summary, a distribution, and one row per question with a reading.
+  await expect(page.getByText("Pass rate at")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Score bands" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What moving the pass mark would cost" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Question by question" })).toBeVisible();
+
+  const itemRows = page.locator(".panel", { hasText: "Question by question" }).locator("tbody tr");
+  await expect(itemRows.first()).toBeVisible();
+  // Difficulty is a proportion, so every row carries a number or an em dash.
+  await expect(itemRows.first().locator("td").nth(2)).toHaveText(/^(\d(\.\d+)?|—)$/);
+});

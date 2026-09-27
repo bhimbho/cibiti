@@ -294,6 +294,15 @@ a.data-row .link-button { pointer-events: none; }
 .picker-foot .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 1000px) { .builder-layout { grid-template-columns: 1fr; } .checks-panel { position: static; } .form-row.four, .form-row.three { grid-template-columns: 1fr 1fr; } }
 
+/* ───────── Exam statistics ───────── */
+.stat-bars { display: grid; gap: 8px; }
+.stat-bar { align-items: center; display: grid; gap: 12px; grid-template-columns: 92px 1fr 130px; }
+.stat-bar-label { color: var(--muted); font-size: 11px; }
+.stat-bar-track { background: #eef3f2; border-radius: 4px; height: 14px; overflow: hidden; }
+.stat-bar-fill { background: var(--teal); display: block; height: 100%; min-width: 2px; }
+.stat-bar-count { color: var(--ink); font-size: 11px; }
+.section-scores .panel .aside-line:first-of-type { border-top: 0; }
+
 /* ───────── Marking queue ───────── */
 .grading-list { display: grid; gap: 14px; margin-top: 24px; }
 .grading-answer { padding: 18px 20px; }
