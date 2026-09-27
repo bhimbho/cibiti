@@ -13,6 +13,44 @@ async function signIn(page: Page, identifier: string) {
   await expect(page.getByRole("heading", { name: /Good (morning|afternoon|evening)/ })).toBeVisible();
 }
 
+/**
+ * Build and publish a throwaway exam from bank questions. Tests that need a candidate
+ * to sit something use one of these rather than the seeded quiz: seeded exams cap
+ * attempts per candidate, and an attempt left in progress by an earlier run is bound
+ * to that run's browser, so neither survives the suite being run twice.
+ */
+async function createExam(staffPage: Page, title: string, questionSearches: string[]) {
+  await staffPage.goto("/exams/new");
+  await staffPage.getByLabel("Exam title", { exact: true }).fill(title);
+  await staffPage.getByRole("button", { name: "Create exam" }).click();
+  await expect(staffPage.getByRole("heading", { name: title })).toBeVisible();
+
+  for (const search of questionSearches) {
+    await staffPage.getByRole("button", { name: "Add questions" }).click();
+    await staffPage.getByRole("textbox", { name: "Search question text" }).fill(search);
+    await staffPage.locator(".picker-row").first().locator("input").check();
+    await staffPage.getByRole("button", { name: "Add 1 question" }).click();
+  }
+
+  await staffPage.getByRole("button", { name: "Publish" }).click();
+  await expect(staffPage.getByText("Exam published.")).toBeVisible();
+}
+
+/**
+ * Enter the paper after clicking Begin or Continue. A fresh attempt shows the start
+ * screen; one resumed from an earlier run goes straight in, so the suite can be run
+ * repeatedly against the same database.
+ */
+async function enterExam(page: Page) {
+  const start = page.getByRole("button", { name: "Start exam" });
+  // A resumed attempt reopens wherever the candidate left off, so the question
+  // number is not necessarily 1.
+  const anyQuestion = page.getByText(/Question \d+ of \d+/);
+  await expect(start.or(anyQuestion).first()).toBeVisible();
+  if (await start.isVisible()) await start.click();
+  await expect(anyQuestion.first()).toBeVisible();
+}
+
 async function answerCurrentQuestion(page: Page) {
   const card = page.locator("[data-question]");
   const text = card.locator("input.take-text-input");
@@ -23,14 +61,20 @@ async function answerCurrentQuestion(page: Page) {
   await card.locator("[data-option-index='0']").click();
 }
 
-test("candidate answers, survives a reload, and submits", async ({ page }) => {
+test("candidate answers, survives a reload, and submits", async ({ page, browser }) => {
+  const title = `E2E Delivery ${Date.now()}`;
+  const staffContext = await browser.newContext();
+  const staffPage = await staffContext.newPage();
+  await signIn(staffPage, "officer@cibiti.dev");
+  await createExam(staffPage, title, ["CPU stand for", "states are there in Nigeria"]);
+  await staffContext.close();
+
   await signIn(page, candidate);
 
-  const row = page.locator(".exam-row", { hasText: "General Studies Practice Quiz" });
-  await row.getByRole("link", { name: /Begin|Continue/ }).click();
+  const row = page.locator(".exam-row", { hasText: title });
+  await row.getByRole("link", { name: "Begin" }).click();
 
-  await page.getByRole("button", { name: "Start exam" }).click();
-  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  await enterExam(page);
 
   const total = Number((await page.getByText(/Question 1 of \d+/).textContent())?.match(/of (\d+)/)?.[1]);
   expect(total).toBeGreaterThan(0);
@@ -50,7 +94,8 @@ test("candidate answers, survives a reload, and submits", async ({ page }) => {
   await page.getByRole("button", { name: "Submit now" }).click();
 
   await expect(page.getByText("EXAM SUBMITTED")).toBeVisible();
-  await expect(page.getByText(/\d+%|result will be released/)).toBeVisible();
+  // A score, or the line explaining when one is coming — this exam releases on close.
+  await expect(page.getByText(/\d+%|released|release results/i).first()).toBeVisible();
 });
 
 test("staff search and filter the question bank", async ({ page }) => {
@@ -286,8 +331,7 @@ test("invigilator adds time and submits a live attempt", async ({ page, browser 
   await candidatePage.getByLabel("Password").fill("live12345");
   await candidatePage.getByRole("button", { name: "Sign in" }).click();
   await candidatePage.locator(".exam-row", { hasText: "CSC101 Continuous Assessment 1" }).getByRole("link", { name: "Begin" }).click();
-  await candidatePage.getByRole("button", { name: "Start exam" }).click();
-  await expect(candidatePage.getByText(/Question 1 of \d+/)).toBeVisible();
+  await enterExam(candidatePage);
 
   const invigilatorContext = await browser.newContext();
   const invigilator = await invigilatorContext.newPage();
@@ -435,14 +479,15 @@ test("administrator edits the grading scale and results show the letter", async 
   await signIn(page, "admin@cibiti.dev");
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Grading scale" })).toBeVisible();
-  // Until it is saved, the default five-point scale is in use.
-  await expect(page.getByText(/default five-point scale/i)).toBeVisible();
 
-  // Narrow the top band, so an A needs 75 rather than 70.
+  // Narrow the top band, so an A needs 75 rather than 70. Saving is what the test is
+  // about; whether a scale had been saved before is left to an earlier run.
   await page.getByLabel("Lowest percentage for grade A").fill("75");
   await page.getByRole("button", { name: "Save scale" }).click();
   await expect(page.getByText("Grading scale saved.")).toBeVisible();
   await expect(page.getByText(/default five-point scale/i)).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel("Lowest percentage for grade A")).toHaveValue("75");
 
   // A scale with a hole in it is refused before it can be saved.
   await page.getByLabel("Remove grade F").click();
@@ -461,6 +506,13 @@ test("exam officer weights a course and files its broadsheet", async ({ page }) 
 
   // Split the course between a CA and the exam that already exists on it.
   await expect(page.getByRole("heading", { name: "Components" })).toBeVisible();
+  // Start from no components, whatever an earlier run left: weights must total 100,
+  // so leftover rows would make every addition invalid.
+  const removeButtons = page.getByRole("button", { name: /^Remove component/ });
+  for (let left = await removeButtons.count(); left > 0; left--) {
+    await removeButtons.first().click();
+  }
+  await expect(removeButtons).toHaveCount(0);
   await page.getByRole("button", { name: "Add component" }).click();
   await page.getByLabel("Component 1 name").fill("Continuous assessment");
   await page.getByLabel("Component 1 weight").fill("30");
@@ -496,11 +548,15 @@ test("administrator allows restarts and an invigilator rescues a candidate", asy
   await signIn(page, "admin@cibiti.dev");
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Recovery and extra time" })).toBeVisible();
-  await expect(page.getByText(/exams cannot be restarted/i)).toBeVisible();
 
-  // Each switch saves as it is changed; there is no Save button to forget.
+  // Each switch saves as it is changed; there is no Save button to forget. Start from
+  // restarting off, whatever an earlier run left behind.
   const allowRestart = page.getByRole("switch", { name: "Allow exams to be restarted" });
   const invigilatorRestart = page.getByRole("switch", { name: "Invigilators may restart" });
+  if ((await allowRestart.getAttribute("aria-checked")) === "true") {
+    await allowRestart.click();
+    await expect(allowRestart).toHaveAttribute("aria-checked", "false");
+  }
   // Meaningless until restarting is on, so it is unreachable rather than refused.
   await expect(invigilatorRestart).toBeDisabled();
 
@@ -510,26 +566,49 @@ test("administrator allows restarts and an invigilator rescues a candidate", asy
   await invigilatorRestart.click();
   await expect(invigilatorRestart).toHaveAttribute("aria-checked", "true");
 
+  // Each run restarts the same seeded candidate, and restarts are capped per
+  // candidate, so the allowance is raised rather than exhausted on the second run.
+  const restartsAllowed = page.getByLabel("Restarts per candidate, per exam");
+  await restartsAllowed.fill("10");
+  await restartsAllowed.blur();
+  await expect(restartsAllowed).toHaveValue("10");
+
   // Saved, not just shown: a reload comes back with both on.
   await page.reload();
   await expect(page.getByRole("switch", { name: "Allow exams to be restarted" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("switch", { name: "Invigilators may restart" })).toHaveAttribute("aria-checked", "true");
 
-  // A candidate starts the practice quiz and gets stuck.
+  // An exam of this run's own, so the candidate always has a fresh attempt to be
+  // rescued from: a seeded exam accumulates attempts, and one left in progress by an
+  // earlier run is bound to that run's browser and cannot be resumed here anyway.
+  const examTitle = `E2E Restart ${Date.now()}`;
+  await page.goto("/exams/new");
+  await page.getByLabel("Exam title", { exact: true }).fill(examTitle);
+  await page.getByRole("button", { name: "Create exam" }).click();
+  await expect(page.getByRole("heading", { name: examTitle })).toBeVisible();
+  await page.getByRole("button", { name: "Add questions" }).click();
+  await page.getByRole("textbox", { name: "Search question text" }).fill("CPU stand for");
+  await page.locator(".picker-row", { hasText: "What does CPU stand for?" }).locator("input").check();
+  await page.getByRole("button", { name: "Add 1 question" }).click();
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByText("Exam published.")).toBeVisible();
+
+  // The candidate starts it and gets stuck.
   const candidateContext = await browser.newContext();
   const candidatePage = await candidateContext.newPage();
   await signIn(candidatePage, "CSC/2026/001");
-  await candidatePage.locator(".exam-row", { hasText: "General Studies Practice Quiz" }).getByRole("link", { name: /Begin|Continue/ }).click();
-  await candidatePage.getByRole("button", { name: "Start exam" }).click();
-  await expect(candidatePage.getByText(/Question 1 of \d+/)).toBeVisible();
+  await candidatePage.locator(".exam-row", { hasText: examTitle }).getByRole("link", { name: "Begin" }).click();
+  await enterExam(candidatePage);
 
   // The invigilator restarts them from the console.
   const invigilatorContext = await browser.newContext();
   const invigilator = await invigilatorContext.newPage();
   await signIn(invigilator, "invigilator@cibiti.dev");
   await invigilator.getByRole("link", { name: "Invigilation" }).click();
-  const row = invigilator.locator("tbody tr", { hasText: "CSC/2026/001" });
-  await expect(row).toBeVisible();
+  // Filtered by this run's exam as well as the candidate: earlier runs leave their own
+  // live attempts on the console.
+  const row = invigilator.locator("tbody tr", { hasText: examTitle }).filter({ hasText: "CSC/2026/001" });
+  await expect(row).toHaveCount(1);
 
   // Confirm, then a reason: the reason is what makes the decision reviewable.
   invigilator.on("dialog", (dialog) =>
@@ -543,7 +622,7 @@ test("administrator allows restarts and an invigilator rescues a candidate", asy
   // The candidate can sit the exam again, from the beginning.
   await candidatePage.goto("/");
   await expect(
-    candidatePage.locator(".exam-row", { hasText: "General Studies Practice Quiz" }).getByRole("link", { name: "Begin" }),
+    candidatePage.locator(".exam-row", { hasText: examTitle }).getByRole("link", { name: "Begin" }),
   ).toBeVisible();
 
   await candidateContext.close();
@@ -670,7 +749,10 @@ test("staff can sit an exam as a candidate for testing, and the attempt says so"
     await expect(page.getByText("Staff can answer exams while viewing as a user.")).toBeVisible();
   }
 
-  // View as a candidate who still has attempts on the practice quiz.
+  // A paper of this run's own, so the candidate always has an attempt to sit.
+  const title = `E2E Staff Sat ${Date.now()}`;
+  await createExam(page, title, ["CPU stand for"]);
+
   await page.goto("/people");
   await page.getByRole("textbox", { name: "Search name, email or matric number" }).fill("CSC/2026/002");
   const row = page.locator(".dt tbody tr", { hasText: "CSC/2026/002" });
@@ -680,9 +762,8 @@ test("staff can sit an exam as a candidate for testing, and the attempt says so"
   await expect(page.getByRole("status").filter({ hasText: "Editing as" })).toBeVisible();
 
   // Sit the exam on their behalf, which is the point of the setting.
-  await page.locator(".exam-row", { hasText: "General Studies Practice Quiz" }).getByRole("link", { name: /Begin|Continue/ }).click();
-  await page.getByRole("button", { name: "Start exam" }).click();
-  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  await page.locator(".exam-row", { hasText: title }).getByRole("link", { name: "Begin" }).click();
+  await enterExam(page);
 
   const total = Number((await page.getByText(/Question 1 of \d+/).textContent())?.match(/of (\d+)/)?.[1]);
   for (let i = 0; i < total; i++) {

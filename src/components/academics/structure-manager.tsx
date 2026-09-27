@@ -83,7 +83,7 @@ export function StructureManager({ data }: { data: AcademicStructure }) {
               <li key={d.id}>
                 <span className="code-chip">{d.code}</span>
                 <InlineName value={d.name} label={`Rename ${d.code}`} onSave={(name) => run(api("departments", d.id), "PUT", { name, code: d.code })} />
-                <small>{d.courses} courses · {d.people} people</small>
+                <small title={`${d.courses} courses · ${d.people} people`}>{d.courses} courses · {d.people} people</small>
                 <button className="icon-btn icon-btn--danger" aria-label={`Delete ${d.name}`} onClick={() => confirmDelete(d.name) && run(api("departments", d.id), "DELETE")}><Trash2 size={13} /></button>
               </li>
             ))}
@@ -106,7 +106,7 @@ export function StructureManager({ data }: { data: AcademicStructure }) {
                   onBlur={(e) => Number(e.target.value) !== l.order && run(api("levels", l.id), "PUT", { name: l.name, order: Number(e.target.value) })}
                 />
                 <InlineName value={l.name} label={`Rename ${l.name}`} onSave={(name) => run(api("levels", l.id), "PUT", { name, order: l.order })} />
-                <small>{l.people} people · {l.groups} groups</small>
+                <small title={`${l.people} people · ${l.groups} groups`}>{l.people} people · {l.groups} groups</small>
                 <button className="icon-btn icon-btn--danger" aria-label={`Delete ${l.name}`} onClick={() => confirmDelete(l.name) && run(api("levels", l.id), "DELETE")}><Trash2 size={13} /></button>
               </li>
             ))}
@@ -121,7 +121,7 @@ export function StructureManager({ data }: { data: AcademicStructure }) {
             {data.groups.map((g) => (
               <li key={g.id}>
                 <InlineName value={g.name} label={`Rename ${g.name}`} onSave={(name) => run(api("groups", g.id), "PUT", { name, levelId: g.levelId })} />
-                <small>{g.level ?? "No level"} · {g.members} members</small>
+                <small title={`${g.level ?? "No level"} · ${g.members} members`}>{g.level ?? "No level"} · {g.members} members</small>
                 <button className="icon-btn icon-btn--danger" aria-label={`Delete ${g.name}`} onClick={() => confirmDelete(`${g.name} and its member list`) && run(api("groups", g.id), "DELETE")}><Trash2 size={13} /></button>
               </li>
             ))}
@@ -185,7 +185,7 @@ export function StructureManager({ data }: { data: AcademicStructure }) {
                       aria-label={`Capacity of ${l.name}`}
                       onBlur={(e) => Number(e.target.value) !== l.capacity && run(api("labs", l.id), "PUT", { venueId: v.id, name: l.name, capacity: Number(e.target.value) })}
                     />
-                    <small>seats · {l.sittings} sittings</small>
+                    <small title={`seats · ${l.sittings} sittings`}>seats · {l.sittings} sittings</small>
                     <button className="icon-btn icon-btn--danger" aria-label={`Delete ${l.name}`} onClick={() => confirmDelete(l.name) && run(api("labs", l.id), "DELETE")}><Trash2 size={13} /></button>
                   </li>
                 ))}
