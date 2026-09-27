@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import type { ResultRow } from "@/lib/results-table";
 import type { TableParams } from "@/lib/table-params";
 import type { Actor } from "../authz";
+import { gradeBands } from "../grades/store";
+import { gradeFor } from "../grades/scale";
 
 const statuses = Object.values(AttemptStatus);
 
@@ -29,7 +31,7 @@ export async function listResults(actor: Actor, params: TableParams) {
   if (released.length === 1) where.releasedAt = released[0] === "yes" ? { not: null } : null;
 
   const sort = params.sort ?? { id: "submittedAt", desc: true };
-  const [total, attempts, exams] = await Promise.all([
+  const [total, attempts, exams, scale] = await Promise.all([
     prisma.attempt.count({ where }),
     prisma.attempt.findMany({
       where,
@@ -43,6 +45,7 @@ export async function listResults(actor: Actor, params: TableParams) {
       },
     }),
     prisma.exam.findMany({ where: { orgId: actor.orgId, deletedAt: null, attempts: { some: {} } }, orderBy: { title: "asc" }, select: { id: true, title: true } }),
+    gradeBands(actor.orgId),
   ]);
 
   const rows: ResultRow[] = attempts.map((a) => ({
@@ -56,6 +59,7 @@ export async function listResults(actor: Actor, params: TableParams) {
     score: a.score,
     maxScore: a.maxScore,
     percent: a.percent,
+    grade: gradeFor(a.percent, scale.bands)?.label ?? null,
     passed: a.passed,
     released: Boolean(a.releasedAt),
     releasePolicy: a.exam.releasePolicy,

@@ -117,6 +117,7 @@ model Organization {
 
   users        User[]
   memberships  Membership[]
+  gradeBands   GradeBand[]
   sessions     AcademicSession[]
   departments  Department[]
   levels       Level[]
@@ -341,6 +342,25 @@ model AssessmentComponent {
   exam   Exam?  @relation(fields: [examId], references: [id])
 
   @@map("assessment_component")
+}
+
+/// One row of the organisation's grading scale, e.g. "A, 70% and above, 5 points".
+/// Editable because scales differ by institution and by country, and a broadsheet
+/// is wrong the moment the bands are somebody else's.
+model GradeBand {
+  id         String @id @default(cuid())
+  orgId      String
+  label      String
+  /// Inclusive floor. The highest band whose floor a score reaches wins.
+  minPercent Int
+  /// Grade point for GPA arithmetic; 0 for a fail.
+  gradePoint Float  @default(0)
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, label])
+  @@index([orgId, minPercent])
+  @@map("grade_band")
 }
 
 model Venue {

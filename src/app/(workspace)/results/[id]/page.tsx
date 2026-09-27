@@ -74,7 +74,9 @@ export default async function AttemptReportPage({ params }: { params: Promise<{ 
         <div className="review-score">
           {attempt.percent !== null ? (
             <>
-              <strong className={attempt.passed === false ? "score-fail" : "score-pass"}>{Math.round(attempt.percent)}%</strong>
+              <strong className={attempt.passed === false ? "score-fail" : "score-pass"}>
+                {Math.round(attempt.percent)}%{report.grade ? ` · ${report.grade}` : ""}
+              </strong>
               <span>{attempt.score} / {attempt.maxScore} marks · pass mark {exam.passMarkPct}%</span>
             </>
           ) : (

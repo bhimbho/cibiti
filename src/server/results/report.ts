@@ -6,6 +6,8 @@ import { audit } from "../audit";
 import { canAnywhere, type Actor } from "../authz";
 import { forbidden } from "../http";
 import { allowsRelease } from "./release-policy";
+import { gradeFor } from "../grades/scale";
+import { gradeBands } from "../grades/store";
 
 export type AttemptReport = {
   viewer: "staff" | "candidate";
@@ -28,6 +30,8 @@ export type AttemptReport = {
   };
   candidate: { name: string; regNumber: string | null; email: string | null };
   exam: { id: string; title: string; passMarkPct: number };
+  /** Letter grade from the organisation's scale; null when there is no score yet. */
+  grade: string | null;
   sections: { id: string; title: string; score: number; maxScore: number }[];
   items: {
     id: string;
@@ -109,6 +113,7 @@ export async function getAttemptReport(actor: Actor, attemptId: string): Promise
     },
     candidate: { name: attempt.user.name, regNumber: attempt.user.regNumber, email: viewer === "staff" ? attempt.user.email : null },
     exam: { id: attempt.exam.id, title: attempt.exam.title, passMarkPct: attempt.exam.passMarkPct },
+    grade: gradeFor(attempt.percent, (await gradeBands(actor.orgId)).bands)?.label ?? null,
     sections: detail === ReviewDetail.SCORE_ONLY ? [] : [...sectionTotals.values()].map((s) => ({ ...s, score: Math.round(s.score * 100) / 100 })),
     items:
       detail !== ReviewDetail.FULL || attempt.status === AttemptStatus.IN_PROGRESS

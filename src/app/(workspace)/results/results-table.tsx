@@ -51,6 +51,13 @@ const columns = [
         </span>
       ),
   }),
+  column.accessor("grade", {
+    id: "grade",
+    header: "Grade",
+    enableSorting: false,
+    meta: { label: "Grade", csv: (row) => row.grade ?? "" },
+    cell: ({ getValue }) => getValue() ?? <span className="draft-hint">—</span>,
+  }),
   column.accessor("released", {
     id: "released",
     header: "Released",

@@ -430,3 +430,26 @@ test("staff read exam statistics and item analysis", async ({ page }) => {
   // Difficulty is a proportion, so every row carries a number or an em dash.
   await expect(itemRows.first().locator("td").nth(2)).toHaveText(/^(\d(\.\d+)?|—)$/);
 });
+
+test("administrator edits the grading scale and results show the letter", async ({ page }) => {
+  await signIn(page, "admin@cibiti.dev");
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Grading scale" })).toBeVisible();
+  // Until it is saved, the default five-point scale is in use.
+  await expect(page.getByText(/default five-point scale/i)).toBeVisible();
+
+  // Narrow the top band, so an A needs 75 rather than 70.
+  await page.getByLabel("Lowest percentage for grade A").fill("75");
+  await page.getByRole("button", { name: "Save scale" }).click();
+  await expect(page.getByText("Grading scale saved.")).toBeVisible();
+  await expect(page.getByText(/default five-point scale/i)).toHaveCount(0);
+
+  // A scale with a hole in it is refused before it can be saved.
+  await page.getByLabel("Remove grade F").click();
+  await expect(page.getByText(/add one starting at 0%/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save scale" })).toBeDisabled();
+
+  await page.goto("/results");
+  const gradeCells = page.locator(".dt tbody tr td").filter({ hasText: /^[A-F]$/ });
+  await expect(gradeCells.first()).toBeVisible();
+});
