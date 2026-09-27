@@ -294,6 +294,10 @@ a.data-row .link-button { pointer-events: none; }
 .picker-foot .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 1000px) { .builder-layout { grid-template-columns: 1fr; } .checks-panel { position: static; } .form-row.four, .form-row.three { grid-template-columns: 1fr 1fr; } }
 
+/* ───────── Staff-assisted attempts ───────── */
+.staff-acted-warning { background: #fbe9e3; border: 1px solid #e0a08c; border-radius: 6px; color: #8c3d27; font-size: 12px; line-height: 1.6; margin: 18px 0 0; padding: 12px 14px; }
+.staff-acted-warning strong { font-weight: 800; }
+
 /* ───────── Viewing as another user ───────── */
 .view-as-banner { align-items: center; background: #fdf3e3; border-bottom: 1px solid #e5c98b; color: #7a5410; display: flex; flex-wrap: wrap; font-size: 12px; gap: 12px; justify-content: space-between; padding: 10px 26px; position: sticky; top: 0; z-index: 30; }
 .view-as-banner strong { font-weight: 800; }

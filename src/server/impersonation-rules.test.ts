@@ -1,6 +1,6 @@
 import { ImpersonationMode } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { canWriteWhileViewing, isReadMethod } from "./impersonation-rules";
+import { attemptIdFromPath, canWriteWhileViewing, isExamAction, isReadMethod } from "./impersonation-rules";
 
 const { READ_ONLY, EDIT } = ImpersonationMode;
 
@@ -24,19 +24,43 @@ describe("canWriteWhileViewing", () => {
     expect(canWriteWhileViewing(EDIT, "/api/questions/abc", "Demo Student")).toEqual({ ok: true });
   });
 
-  it("never allows sitting an exam, in either mode", () => {
-    const paths = [
-      "/api/attempts/abc123/responses",
-      "/api/attempts/abc123/submit",
-      "/api/attempts/abc123/resume",
-      "/api/attempts/abc123/events",
-    ];
+  const examPaths = [
+    "/api/attempts/abc123/responses",
+    "/api/attempts/abc123/submit",
+    "/api/attempts/abc123/resume",
+    "/api/attempts/abc123/events",
+  ];
+
+  it("refuses sitting an exam unless it is deliberately switched on", () => {
     for (const mode of [READ_ONLY, EDIT]) {
-      for (const path of paths) {
+      for (const path of examPaths) {
         const decision = canWriteWhileViewing(mode, path, "Demo Student");
         expect(decision.ok, `${mode} ${path}`).toBe(false);
-        expect(decision).toMatchObject({ reason: expect.stringMatching(/never permitted/i) });
+        expect(decision).toMatchObject({ reason: expect.stringMatching(/switched off/i) });
       }
+    }
+  });
+
+  it("allows sitting an exam only with both switches on", () => {
+    for (const path of examPaths) {
+      // Editing alone is a support tool; answering an exam needs its own switch.
+      expect(canWriteWhileViewing(EDIT, path, "Demo Student", true), path).toEqual({ ok: true });
+      expect(canWriteWhileViewing(EDIT, path, "Demo Student", false).ok, path).toBe(false);
+      // And the exam switch cannot stand in for editing.
+      expect(canWriteWhileViewing(READ_ONLY, path, "Demo Student", true).ok, path).toBe(false);
+    }
+  });
+
+  it("names the attempt an exam action belongs to, so it can be marked", () => {
+    expect(attemptIdFromPath("/api/attempts/abc123/responses")).toBe("abc123");
+    expect(attemptIdFromPath("/api/attempts/abc123/submit")).toBe("abc123");
+    expect(attemptIdFromPath("/api/courses")).toBeNull();
+  });
+
+  it("knows which paths count as sitting an exam", () => {
+    for (const path of examPaths) expect(isExamAction(path)).toBe(true);
+    for (const path of ["/api/attempts/abc/extend", "/api/courses", "/api/impersonation"]) {
+      expect(isExamAction(path)).toBe(false);
     }
   });
 

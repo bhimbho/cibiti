@@ -57,7 +57,11 @@ export default async function SettingsPage() {
           Administrators can open the app as any user in this organisation from that person&rsquo;s
           page, without their password. Starting and stopping are always recorded in the audit log.
         </p>
-        <ImpersonationModeForm mode={viewAs.mode} isDefault={viewAs.isDefault} />
+        <ImpersonationModeForm
+          mode={viewAs.mode}
+          allowExamActions={viewAs.allowExamActions}
+          isDefault={viewAs.isDefault}
+        />
       </section>
 
       <section className="panel settings-panel">

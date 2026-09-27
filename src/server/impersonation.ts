@@ -27,12 +27,64 @@ import { badRequest, forbidden, notFound } from "./http";
  * How much a view allows. READ_ONLY until an administrator says otherwise, because a
  * support tool that can write is a tool that can be misused quietly.
  */
-export async function impersonationMode(orgId: string): Promise<{ mode: ImpersonationMode; isDefault: boolean }> {
-  const row = await prisma.impersonationPolicy.findUnique({ where: { orgId }, select: { mode: true } });
-  return row ? { mode: row.mode, isDefault: false } : { mode: ImpersonationMode.READ_ONLY, isDefault: true };
+export async function impersonationMode(
+  orgId: string,
+): Promise<{ mode: ImpersonationMode; allowExamActions: boolean; isDefault: boolean }> {
+  const row = await prisma.impersonationPolicy.findUnique({
+    where: { orgId },
+    select: { mode: true, allowExamActions: true },
+  });
+  return row
+    ? { mode: row.mode, allowExamActions: row.allowExamActions, isDefault: false }
+    : { mode: ImpersonationMode.READ_ONLY, allowExamActions: false, isDefault: true };
 }
 
-export async function setImpersonationMode(admin: Actor, mode: ImpersonationMode) {
+/**
+ * Records that staff acted on a candidate's paper. Called from the request guard, so
+ * it cannot be forgotten by a caller: the mark is what separates a test submission
+ * from a real one, and an unmarked one would be indistinguishable.
+ */
+export async function markStaffActedOnAttempt(attemptId: string, actor: Actor) {
+  const realUserId = actor.viewAs?.realUserId;
+  if (!realUserId) return;
+
+  const attempt = await prisma.attempt.findFirst({
+    where: { id: attemptId, exam: { orgId: actor.orgId } },
+    select: { id: true, staffActedById: true },
+  });
+  if (!attempt) return;
+
+  await prisma.$transaction(async (tx) => {
+    if (!attempt.staffActedById) {
+      await tx.attempt.update({
+        where: { id: attempt.id },
+        data: { staffActedById: realUserId, staffActedAt: new Date() },
+      });
+      // One timeline entry per attempt, not per keystroke: the autosave would other-
+      // wise bury the rest of the integrity timeline under thousands of these.
+      await tx.proctorEvent.create({
+        data: {
+          attemptId: attempt.id,
+          type: "attempt.staff-acted",
+          severity: "HIGH",
+          payload: { by: realUserId, byName: actor.viewAs?.realName ?? null, viewingAs: actor.name },
+        },
+      });
+      await audit(
+        {
+          actor: { userId: realUserId, orgId: actor.orgId },
+          action: "attempt.staff-acted",
+          entityType: "attempt",
+          entityId: attempt.id,
+          after: { viewingAs: actor.name, viewingAsUserId: actor.userId },
+        },
+        tx,
+      );
+    }
+  });
+}
+
+export async function setImpersonationMode(admin: Actor, mode: ImpersonationMode, allowExamActions?: boolean) {
   if (!canAnywhere(admin, "org:manage")) throw forbidden("Only administrators can change this.");
   // Not while viewing as somebody: raising your own permissions from inside a view
   // is exactly the move this setting has to be protected from.
@@ -40,13 +92,22 @@ export async function setImpersonationMode(admin: Actor, mode: ImpersonationMode
 
   const before = await impersonationMode(admin.orgId);
   await prisma.$transaction(async (tx) => {
+    // Answering exams is meaningless without EDIT, so it is cleared with it.
+    const exams = mode === ImpersonationMode.EDIT ? (allowExamActions ?? before.allowExamActions) : false;
     await tx.impersonationPolicy.upsert({
       where: { orgId: admin.orgId },
-      create: { orgId: admin.orgId, mode },
-      update: { mode },
+      create: { orgId: admin.orgId, mode, allowExamActions: exams },
+      update: { mode, allowExamActions: exams },
     });
     await audit(
-      { actor: admin, action: "impersonation-policy.set", entityType: "organization", entityId: admin.orgId, before: { mode: before.mode }, after: { mode } },
+      {
+        actor: admin,
+        action: "impersonation-policy.set",
+        entityType: "organization",
+        entityId: admin.orgId,
+        before: { mode: before.mode, allowExamActions: before.allowExamActions },
+        after: { mode, allowExamActions: exams },
+      },
       tx,
     );
   });

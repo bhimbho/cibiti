@@ -16,6 +16,8 @@ const eventLabels: Record<string, string> = {
   "attempt.started": "Started the exam",
   "attempt.resumed": "Resumed the exam",
   "attempt.submitted": "Submitted",
+  "attempt.staff-acted": "Staff answered or submitted this attempt while viewing as the candidate",
+  "attempt.restarted": "Restarted by staff",
   "focus.lost": "Left the exam window",
   "focus.returned": "Returned to the exam window",
   "visibility.hidden": "Tab hidden",
@@ -63,6 +65,14 @@ export default async function AttemptReportPage({ params }: { params: Promise<{ 
 
   return (
     <main className="authoring-page wide">
+      {attempt.staffActed && (
+        <p className="staff-acted-warning" role="status">
+          <strong>Staff-assisted attempt.</strong> {attempt.staffActed.name} answered or submitted this
+          attempt while viewing as {candidate.name} on {dateTime.format(new Date(attempt.staffActed.at))}.
+          It is not the candidate&rsquo;s own work and should not be treated as a result.
+        </p>
+      )}
+
       <div className="authoring-header">
         <div>
           <Link className="back-link" href="/results">&lt;- Back to results</Link>

@@ -19,6 +19,8 @@ export type ResultRow = {
   percent: number | null;
   /** Letter grade from the organisation's scale; null when unscored or ungraded. */
   grade: string | null;
+  /** True when staff wrote into this attempt while viewing as the candidate. */
+  staffActed: boolean;
   passed: boolean | null;
   released: boolean;
   /** The exam's release policy, so a withheld result reads differently from a pending one. */

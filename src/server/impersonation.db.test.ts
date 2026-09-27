@@ -172,7 +172,7 @@ describe.skipIf(!hasDb)("viewing as another user", () => {
   it("is read-only until an administrator says otherwise", async () => {
     const { impersonationMode } = await import("./impersonation");
     const mode = await impersonationMode(orgId);
-    expect(mode).toEqual({ mode: "READ_ONLY", isDefault: true });
+    expect(mode).toEqual({ mode: "READ_ONLY", allowExamActions: false, isDefault: true });
   });
 
   it("saves the editing setting, and records who changed it", async () => {
@@ -180,7 +180,7 @@ describe.skipIf(!hasDb)("viewing as another user", () => {
 
     const saved = await setImpersonationMode(admin, "EDIT");
 
-    expect(saved).toEqual({ mode: "EDIT", isDefault: false });
+    expect(saved).toEqual({ mode: "EDIT", allowExamActions: false, isDefault: false });
     expect(await impersonationMode(orgId)).toMatchObject({ mode: "EDIT" });
     const entry = await prisma.auditLog.findFirst({
       where: { orgId, action: "impersonation-policy.set" },
@@ -199,6 +199,71 @@ describe.skipIf(!hasDb)("viewing as another user", () => {
     // Raising your own permissions from inside a view is the move to prevent.
     const viewing = { ...admin, viewAs: { realUserId: admin.userId, realName: "Ada Admin", startedAt: Date.now() } };
     await expect(setImpersonationMode(viewing, "EDIT")).rejects.toThrow(/stop viewing as another user/i);
+  });
+
+  it("marks an attempt staff acted on, once, with a timeline entry and an audit row", async () => {
+    const { markStaffActedOnAttempt } = await import("./impersonation");
+    const exam = await prisma.exam.create({
+      data: { orgId, title: `${stamp} acted`, authorId: admin.userId, status: "PUBLISHED", publishedAt: new Date() },
+      select: { id: true },
+    });
+    const attempt = await prisma.attempt.create({
+      data: { examId: exam.id, userId: candidateId, attemptNo: 1, maxScore: 5 },
+      select: { id: true },
+    });
+    const viewing = {
+      ...actorFor(candidateId, Role.CANDIDATE, "Candidate"),
+      viewAs: { realUserId: admin.userId, realName: "Ada Admin", startedAt: Date.now() },
+    };
+
+    await markStaffActedOnAttempt(attempt.id, viewing);
+    // Autosave fires constantly; the mark must not pile up with it.
+    await markStaffActedOnAttempt(attempt.id, viewing);
+
+    const after = await prisma.attempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    expect(after.staffActedById).toBe(admin.userId);
+    expect(after.staffActedAt).not.toBeNull();
+    const events = await prisma.proctorEvent.findMany({ where: { attemptId: attempt.id, type: "attempt.staff-acted" } });
+    expect(events).toHaveLength(1);
+    const entry = await prisma.auditLog.findFirst({ where: { orgId, action: "attempt.staff-acted", entityId: attempt.id } });
+    // Recorded against the administrator who was really there.
+    expect(entry?.actorId).toBe(admin.userId);
+
+    await prisma.attempt.deleteMany({ where: { examId: exam.id } });
+    await prisma.exam.delete({ where: { id: exam.id } });
+  });
+
+  it("does not mark anything when nobody is viewing as anybody", async () => {
+    const { markStaffActedOnAttempt } = await import("./impersonation");
+    const exam = await prisma.exam.create({
+      data: { orgId, title: `${stamp} unacted`, authorId: admin.userId, status: "PUBLISHED", publishedAt: new Date() },
+      select: { id: true },
+    });
+    const attempt = await prisma.attempt.create({
+      data: { examId: exam.id, userId: candidateId, attemptNo: 1, maxScore: 5 },
+      select: { id: true },
+    });
+
+    // A candidate sitting their own exam, with no view in progress.
+    await markStaffActedOnAttempt(attempt.id, actorFor(candidateId, Role.CANDIDATE, "Candidate"));
+
+    const after = await prisma.attempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    expect(after.staffActedById).toBeNull();
+
+    await prisma.attempt.deleteMany({ where: { examId: exam.id } });
+    await prisma.exam.delete({ where: { id: exam.id } });
+  });
+
+  it("clears the exam-answering switch when editing is switched off", async () => {
+    const { impersonationMode, setImpersonationMode } = await import("./impersonation");
+    await setImpersonationMode(admin, "EDIT", true);
+    expect(await impersonationMode(orgId)).toMatchObject({ mode: "EDIT", allowExamActions: true });
+
+    await setImpersonationMode(admin, "READ_ONLY");
+
+    // Answering exams means nothing without editing; leaving it set would be a trap
+    // waiting for the next time editing is turned on.
+    expect(await impersonationMode(orgId)).toMatchObject({ mode: "READ_ONLY", allowExamActions: false });
   });
 
   it("stops, clearing the cookie and recording it", async () => {

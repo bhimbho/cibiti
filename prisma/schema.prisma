@@ -164,6 +164,7 @@ model User {
   accommodations Accommodation[]
   assignments  ExamAssignment[]
   attempts     Attempt[]
+  actedAttempts Attempt[] @relation("AttemptStaffActor")
   authoredQuestions Question[]        @relation("QuestionAuthor")
   authoredVersions  QuestionVersion[] @relation("VersionAuthor")
   authoredExams     Exam[]            @relation("ExamAuthor")
@@ -360,6 +361,10 @@ enum ImpersonationMode {
 model ImpersonationPolicy {
   orgId     String            @id
   mode      ImpersonationMode @default(READ_ONLY)
+  /// Lets staff answer and submit a candidate's exam while viewing as them. For
+  /// testing a delivery flow end to end; off by default, needs EDIT mode as well,
+  /// and every attempt touched this way is marked on the attempt itself.
+  allowExamActions Boolean     @default(false)
   updatedAt DateTime          @updatedAt
 
   org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -779,6 +784,11 @@ model Attempt {
   /// Seed the paper was built from: question draw, question order and option
   /// order all derive from it, so a disputed paper can be reproduced exactly.
   randomSeed       String?
+  /// Set when a member of staff answered or submitted this attempt while viewing as
+  /// the candidate. An attempt carrying this is not the candidate's own work, and
+  /// says so wherever it is shown.
+  staffActedById   String?
+  staffActedAt     DateTime?
   score            Float?
   maxScore         Float
   percent          Float?
@@ -787,11 +797,12 @@ model Attempt {
   releasedAt       DateTime?
   riskScore        Int           @default(0)
 
-  exam    Exam           @relation(fields: [examId], references: [id])
-  session ExamSession?   @relation(fields: [sessionId], references: [id])
-  user    User           @relation(fields: [userId], references: [id])
-  items   AttemptItem[]
-  events  ProctorEvent[]
+  exam         Exam           @relation(fields: [examId], references: [id])
+  session      ExamSession?   @relation(fields: [sessionId], references: [id])
+  user         User           @relation(fields: [userId], references: [id])
+  staffActedBy User?          @relation("AttemptStaffActor", fields: [staffActedById], references: [id])
+  items        AttemptItem[]
+  events       ProctorEvent[]
 
   @@unique([examId, userId, attemptNo])
   @@index([userId])

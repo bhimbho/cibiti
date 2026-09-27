@@ -590,7 +590,7 @@ test("administrator views the app as a candidate, read-only, then stops", async 
 });
 
 
-test("editing while viewing as a user is a setting, and never covers sitting an exam", async ({ page }) => {
+test("editing while viewing as a user is a setting, and does not extend to sitting an exam", async ({ page }) => {
   await signIn(page, "admin@cibiti.dev");
 
   // Start from read-only whatever an earlier run left behind, so the test can be
@@ -637,15 +637,81 @@ test("editing while viewing as a user is a setting, and never covers sitting an 
   const allowed = await page.request.post("/api/courses", { data: course });
   expect(allowed.ok()).toBe(true);
 
-  // Sitting an exam stays impossible even so.
+  // Editing does not by itself extend to sitting an exam: that needs its own switch,
+  // which the next test covers.
   // PUT is how answers are saved; the guard refuses before the handler is reached.
   const examWrite = await page.request.put("/api/attempts/any-attempt-id/responses", { data: { writes: [] } });
   expect(examWrite.status()).toBe(403);
-  expect((await examWrite.json()).error).toMatch(/never permitted/i);
+  expect((await examWrite.json()).error).toMatch(/switched off/i);
 
   // Put the setting back, so the rest of the suite sees the default.
   await editingBanner.getByRole("button", { name: "Stop viewing as them" }).click();
   await expect(page.getByRole("status").filter({ hasText: /Viewing as|Editing as/ })).toHaveCount(0);
+  await page.goto("/settings");
+  await page.getByRole("switch", { name: "Allow editing while viewing as a user" }).click();
+  await expect(page.getByText("Viewing is read-only again.")).toBeVisible();
+});
+
+
+test("staff can sit an exam as a candidate for testing, and the attempt says so", async ({ page }) => {
+  await signIn(page, "admin@cibiti.dev");
+
+  // Both switches, from whatever state an earlier run left.
+  await page.goto("/settings");
+  const editSwitch = page.getByRole("switch", { name: "Allow editing while viewing as a user" });
+  const examSwitch = page.getByRole("switch", { name: "Allow answering and submitting exams" });
+  page.on("dialog", (dialog) => void dialog.accept());
+  if ((await editSwitch.getAttribute("aria-checked")) === "false") {
+    await editSwitch.click();
+    await expect(page.getByText("Editing allowed while viewing as a user.")).toBeVisible();
+  }
+  if ((await examSwitch.getAttribute("aria-checked")) === "false") {
+    await examSwitch.click();
+    await expect(page.getByText("Staff can answer exams while viewing as a user.")).toBeVisible();
+  }
+
+  // View as a candidate who still has attempts on the practice quiz.
+  await page.goto("/people");
+  await page.getByRole("textbox", { name: "Search name, email or matric number" }).fill("CSC/2026/002");
+  const row = page.locator(".dt tbody tr", { hasText: "CSC/2026/002" });
+  await expect(row).toHaveCount(1);
+  await row.getByRole("link", { name: "Chiamaka Obi" }).click();
+  await page.getByRole("button", { name: "View as this user" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Editing as" })).toBeVisible();
+
+  // Sit the exam on their behalf, which is the point of the setting.
+  await page.locator(".exam-row", { hasText: "General Studies Practice Quiz" }).getByRole("link", { name: /Begin|Continue/ }).click();
+  await page.getByRole("button", { name: "Start exam" }).click();
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+
+  const total = Number((await page.getByText(/Question 1 of \d+/).textContent())?.match(/of (\d+)/)?.[1]);
+  for (let i = 0; i < total; i++) {
+    await answerCurrentQuestion(page);
+    if (i < total - 1) await page.getByRole("button", { name: "Next", exact: true }).click();
+  }
+  await expect(page.getByRole("status").filter({ hasText: "All answers saved" })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Review & submit" }).click();
+  await page.getByRole("button", { name: "Submit exam" }).click();
+  await page.getByRole("button", { name: "Submit now" }).click();
+  await expect(page.getByText("EXAM SUBMITTED")).toBeVisible();
+
+  // Back as the administrator: the attempt carries the mark, not just a log line.
+  await page.goto("/");
+  await page.getByRole("button", { name: "Stop viewing as them" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Viewing as|Editing as/ })).toHaveCount(0);
+
+  await page.goto("/results");
+  const resultRow = page.locator(".dt tbody tr", { hasText: "CSC/2026/002" }).first();
+  await expect(resultRow.getByText("Staff-assisted")).toBeVisible();
+  await resultRow.locator("a.dt-link").click();
+  const warning = page.getByRole("status").filter({ hasText: "Staff-assisted attempt" });
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText("Ada Admin");
+  await expect(warning).toContainText("not the candidate");
+  // And it is on the integrity timeline beside the rest of the attempt's history.
+  await expect(page.locator(".timeline")).toContainText(/staff/i);
+
+  // Leave the settings as they were found.
   await page.goto("/settings");
   await page.getByRole("switch", { name: "Allow editing while viewing as a user" }).click();
   await expect(page.getByText("Viewing is read-only again.")).toBeVisible();

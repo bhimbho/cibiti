@@ -60,6 +60,7 @@ export async function listResults(actor: Actor, params: TableParams) {
     maxScore: a.maxScore,
     percent: a.percent,
     grade: gradeFor(a.percent, scale.bands)?.label ?? null,
+    staffActed: a.staffActedById !== null,
     passed: a.passed,
     released: Boolean(a.releasedAt),
     releasePolicy: a.exam.releasePolicy,

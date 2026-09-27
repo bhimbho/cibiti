@@ -51,6 +51,18 @@ const columns = [
         </span>
       ),
   }),
+  column.accessor("staffActed", {
+    id: "staffActed",
+    header: "",
+    enableSorting: false,
+    meta: { label: "Staff-assisted", csv: (row) => (row.staffActed ? "staff-assisted" : "") },
+    cell: ({ getValue }) =>
+      getValue() ? (
+        <span className="live-badge" title="Staff answered or submitted this attempt while viewing as the candidate">
+          Staff-assisted
+        </span>
+      ) : null,
+  }),
   column.accessor("grade", {
     id: "grade",
     header: "Grade",

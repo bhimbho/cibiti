@@ -44,15 +44,23 @@ type Handler<C> = (request: Request, context: C) => Promise<Response>;
 export function route<C>(handler: Handler<C>): Handler<C> {
   return async (request, context) => {
     try {
-      const { isReadMethod, canWriteWhileViewing } = await import("./impersonation-rules");
+      const { isReadMethod, canWriteWhileViewing, isExamAction, attemptIdFromPath } = await import(
+        "./impersonation-rules"
+      );
       if (!isReadMethod(request.method)) {
         const { getActor } = await import("./authz");
         const actor = await getActor();
         if (actor?.viewAs) {
-          const { impersonationMode } = await import("./impersonation");
-          const { mode } = await impersonationMode(actor.orgId);
-          const decision = canWriteWhileViewing(mode, new URL(request.url).pathname, actor.name);
+          const path = new URL(request.url).pathname;
+          const { impersonationMode, markStaffActedOnAttempt } = await import("./impersonation");
+          const { mode, allowExamActions } = await impersonationMode(actor.orgId);
+          const decision = canWriteWhileViewing(mode, path, actor.name, allowExamActions);
           if (!decision.ok) throw forbidden(decision.reason);
+
+          // Marked before the write, not after: a request that fails halfway must
+          // still leave the attempt showing that staff touched it.
+          const attemptId = isExamAction(path) ? attemptIdFromPath(path) : null;
+          if (attemptId) await markStaffActedOnAttempt(attemptId, actor);
         }
       }
       return await handler(request, context);
