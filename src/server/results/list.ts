@@ -38,7 +38,7 @@ export async function listResults(actor: Actor, params: TableParams) {
       take: params.pageSize,
       include: {
         user: { select: { name: true, regNumber: true } },
-        exam: { select: { title: true } },
+        exam: { select: { title: true, releasePolicy: true } },
         _count: { select: { events: { where: { severity: { in: [EventSeverity.MEDIUM, EventSeverity.HIGH] } } } } },
       },
     }),
@@ -58,6 +58,7 @@ export async function listResults(actor: Actor, params: TableParams) {
     percent: a.percent,
     passed: a.passed,
     released: Boolean(a.releasedAt),
+    releasePolicy: a.exam.releasePolicy,
     flags: a._count.events,
     startedAt: a.startedAt.toISOString(),
     submittedAt: a.submittedAt?.toISOString() ?? null,

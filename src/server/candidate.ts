@@ -1,4 +1,4 @@
-import { AttemptStatus } from "@prisma/client";
+import { AttemptStatus, ReleasePolicy } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { Actor } from "./authz";
 import { eligibleExamsWhere } from "./eligibility";
@@ -33,7 +33,7 @@ export async function candidateOverview(actor: Actor) {
       where: { userId: actor.userId },
       orderBy: { startedAt: "desc" },
       take: 50,
-      include: { exam: { select: { title: true } } },
+      include: { exam: { select: { title: true, releasePolicy: true } } },
     }),
   ]);
 
@@ -69,6 +69,9 @@ export async function candidateOverview(actor: Actor) {
       status: a.status,
       percent: a.releasedAt ? a.percent : null,
       passed: a.releasedAt ? a.passed : null,
+      // Tells the page to say the score is not published for this exam, rather
+      // than leaving the candidate waiting for a release that will never come.
+      withheld: !a.releasedAt && a.exam.releasePolicy === ReleasePolicy.NEVER,
     }));
 
   return { available, history };

@@ -71,7 +71,11 @@ export function ExamBuilder({ data, canPublish }: Props) {
             <button className="outline-button" disabled={busy} onClick={() => run(`/api/exams/${settings.id}/status`, "POST", { action: "unpublish" }, "Exam moved back to draft.")}>Unpublish</button>
           )}
           {canPublish && settings.status === "PUBLISHED" && (
-            <button className="outline-button" disabled={busy} onClick={() => window.confirm("Close the exam? No new attempts can start; attempts in progress continue.") && run(`/api/exams/${settings.id}/status`, "POST", { action: "close" }, "Exam closed.")}>Close exam</button>
+            <button className="outline-button" disabled={busy} onClick={() => window.confirm(
+                settings.releasePolicy === "AFTER_CLOSE"
+                  ? "Close the exam? No new attempts can start, attempts in progress continue, and marked results are released to candidates."
+                  : "Close the exam? No new attempts can start; attempts in progress continue.",
+              ) && run(`/api/exams/${settings.id}/status`, "POST", { action: "close" }, "Exam closed.")}>Close exam</button>
           )}
           {canPublish && settings.status === "CLOSED" && (
             <button className="outline-button" disabled={busy} onClick={() => run(`/api/exams/${settings.id}/status`, "POST", { action: "publish" }, "Exam reopened.")}>Reopen</button>

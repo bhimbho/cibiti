@@ -59,6 +59,10 @@ enum ReleasePolicy {
   IMMEDIATE
   AFTER_CLOSE
   MANUAL
+  // Scores are never shown to candidates: internal assessments, moderated
+  // papers, anything published through another channel. Staff still see
+  // everything, and switching away from NEVER is how results are let out.
+  NEVER
 }
 
 enum ReviewDetail {

@@ -23,7 +23,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
           <div>
             <p className="eyebrow">PERFORMANCE</p>
             <h1>My results</h1>
-            <p>Results appear here once your institution releases them.</p>
+            <p>Results appear here once your institution releases them. Some exams are marked internally and never publish a score.</p>
           </div>
         </div>
         <section className="panel results-list">
@@ -36,7 +36,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
                 <p>Submitted {h.submittedAt ? dateTime.format(new Date(h.submittedAt)) : "—"}</p>
               </div>
               {h.percent === null ? (
-                <strong className="muted-score">Not released</strong>
+                <strong className="muted-score">{h.withheld ? "Not published" : "Not released"}</strong>
               ) : (
                 <Link className="secondary-button" href={`/results/${h.id}`}>{Math.round(h.percent)}% · View</Link>
               )}

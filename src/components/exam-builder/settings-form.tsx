@@ -16,7 +16,7 @@ export type ExamSettingsValue = {
   shuffleOptions: boolean;
   navigation: "FREE" | "LINEAR";
   negativeMarking: boolean;
-  releasePolicy: "IMMEDIATE" | "AFTER_CLOSE" | "MANUAL";
+  releasePolicy: "IMMEDIATE" | "AFTER_CLOSE" | "MANUAL" | "NEVER";
   reviewDetail: "SCORE_ONLY" | "BREAKDOWN" | "FULL";
   integrityLevel: number;
 };
@@ -138,7 +138,13 @@ export function ExamSettingsForm({ examId, initial, courses }: Props) {
               <option value="IMMEDIATE">Immediately after submitting</option>
               <option value="AFTER_CLOSE">When the exam is closed</option>
               <option value="MANUAL">Manually by staff</option>
+              <option value="NEVER">Never — candidates never see scores</option>
             </select>
+            {value.releasePolicy === "NEVER" && (
+              <span className="field-hint">
+                Staff keep full access. Saving this also takes back any result already released for this exam.
+              </span>
+            )}
           </label>
           <label>
             Candidates see

@@ -1,5 +1,6 @@
 import { AttemptStatus, GradeMethod, Prisma, SubmissionType } from "@prisma/client";
 import { scoreItem } from "@/items/registry";
+import { releasesOnGrading } from "../results/release-policy";
 import { toJson } from "../http";
 
 type Tx = Prisma.TransactionClient;
@@ -59,7 +60,7 @@ export async function finalizeAttempt(tx: Tx, attemptId: string, submissionType:
       percent,
       passed: needsManual ? null : percent >= attempt.exam.passMarkPct,
       gradedAt: needsManual ? null : now,
-      releasedAt: attempt.exam.releasePolicy === "IMMEDIATE" && !needsManual ? now : null,
+      releasedAt: releasesOnGrading(attempt.exam.releasePolicy, needsManual) ? now : null,
     },
   });
 

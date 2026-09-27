@@ -5,6 +5,8 @@ import { audit } from "../audit";
 import { can, type Actor, type Permission } from "../authz";
 import { badRequest, conflict, forbidden, notFound } from "../http";
 import { preflight } from "./builder";
+import { releasesOnClose } from "../results/release-policy";
+import { releaseAllForExam, withdrawResultsForExam } from "../results/report";
 
 // ─────────────── Schemas ───────────────
 
@@ -127,7 +129,15 @@ export async function updateExamSettings(actor: Actor, examId: string, input: Ex
       tx,
     );
   });
-  return { changed };
+
+  // Switching to NEVER has to take back what is already out, or the setting only
+  // governs releases that have not happened yet.
+  const withdrawn =
+    changed.includes("releasePolicy") && input.releasePolicy === ReleasePolicy.NEVER
+      ? (await withdrawResultsForExam(examId, actor.orgId, actor.userId)).withdrawn
+      : 0;
+
+  return { changed, withdrawn };
 }
 
 export async function deleteExam(actor: Actor, examId: string) {
@@ -202,7 +212,11 @@ export async function closeExam(actor: Actor, examId: string) {
     await tx.exam.update({ where: { id: examId }, data: { status: ExamStatus.CLOSED } });
     await audit({ actor, action: "exam.close", entityType: "exam", entityId: examId, before: { status: exam.status }, after: { status: ExamStatus.CLOSED } }, tx);
   });
-  return { status: ExamStatus.CLOSED };
+
+  // The whole point of "when the exam is closed": nothing used to act on it, so
+  // results on that policy sat unreleased until somebody released them by hand.
+  const released = releasesOnClose(exam.releasePolicy) ? await releaseAllForExam(actor, examId) : null;
+  return { status: ExamStatus.CLOSED, released: released?.released ?? 0 };
 }
 
 export async function unpublishExam(actor: Actor, examId: string) {

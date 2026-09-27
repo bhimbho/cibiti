@@ -19,6 +19,8 @@ export type ResultRow = {
   percent: number | null;
   passed: boolean | null;
   released: boolean;
+  /** The exam's release policy, so a withheld result reads differently from a pending one. */
+  releasePolicy: "IMMEDIATE" | "AFTER_CLOSE" | "MANUAL" | "NEVER";
   flags: number;
   startedAt: string;
   submittedAt: string | null;

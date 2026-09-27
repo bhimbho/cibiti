@@ -55,8 +55,20 @@ const columns = [
     id: "released",
     header: "Released",
     enableSorting: false,
-    meta: { label: "Released", csv: (row) => (row.released ? "yes" : "no") },
-    cell: ({ getValue }) => (getValue() ? "Yes" : <span className="draft-hint">Not yet</span>),
+    meta: {
+      label: "Released",
+      csv: (row) => (row.released ? "yes" : row.releasePolicy === "NEVER" ? "withheld" : "no"),
+    },
+    // "Withheld" is not the same state as "not yet": the exam is set never to
+    // show scores, so waiting will not change it.
+    cell: ({ row }) =>
+      row.original.released ? (
+        "Yes"
+      ) : row.original.releasePolicy === "NEVER" ? (
+        <span className="draft-hint" title="This exam never shows results to candidates">Withheld</span>
+      ) : (
+        <span className="draft-hint">Not yet</span>
+      ),
   }),
   column.accessor("flags", {
     id: "flags",
@@ -75,9 +87,17 @@ export function ResultsTable({ rows, total, params, facets, canRelease }: { rows
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   async function release(selected: ResultRow[], clear: () => void) {
-    const result = await callApi<{ released: number; skipped: number }>("/api/results/release", "POST", { attemptIds: selected.map((r) => r.id) });
+    const result = await callApi<{ released: number; skipped: number; withheld: number }>("/api/results/release", "POST", { attemptIds: selected.map((r) => r.id) });
     if (!result.ok) return setMessage({ tone: "error", text: result.error });
-    setMessage({ tone: "ok", text: `Released ${result.data.released} result${result.data.released === 1 ? "" : "s"}${result.data.skipped ? `; ${result.data.skipped} skipped (not graded or already released)` : ""}.` });
+    const notes = [
+      result.data.skipped ? `${result.data.skipped} skipped (not graded or already released)` : null,
+      // Named separately so staff know the exam's policy blocked it, not its state.
+      result.data.withheld ? `${result.data.withheld} withheld (exam set never to show results)` : null,
+    ].filter(Boolean);
+    setMessage({
+      tone: "ok",
+      text: `Released ${result.data.released} result${result.data.released === 1 ? "" : "s"}${notes.length ? `; ${notes.join("; ")}` : ""}.`,
+    });
     clear();
     router.refresh();
   }

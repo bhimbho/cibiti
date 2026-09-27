@@ -5,6 +5,7 @@ import type { ItemReview } from "@/items/types";
 import { audit } from "../audit";
 import { canAnywhere, type Actor } from "../authz";
 import { forbidden } from "../http";
+import { allowsRelease } from "./release-policy";
 
 export type AttemptReport = {
   viewer: "staff" | "candidate";
@@ -136,13 +137,19 @@ export async function getAttemptReport(actor: Actor, attemptId: string): Promise
   };
 }
 
-/** Make graded results visible to candidates. Attempts still being marked are skipped. */
+/**
+ * Make graded results visible to candidates. Attempts still being marked are
+ * skipped, and attempts on an exam set to NEVER are withheld — reported apart
+ * from the skipped ones so the caller can say why nothing happened.
+ */
 export async function releaseResults(actor: Actor, attemptIds: string[]) {
   if (!canAnywhere(actor, "grade:write") && !canAnywhere(actor, "exam:publish")) throw forbidden("Only exam officers and graders can release results.");
-  const attempts = await prisma.attempt.findMany({
+  const candidates = await prisma.attempt.findMany({
     where: { id: { in: attemptIds }, exam: { orgId: actor.orgId }, status: AttemptStatus.GRADED, releasedAt: null },
-    select: { id: true },
+    select: { id: true, exam: { select: { releasePolicy: true } } },
   });
+  const attempts = candidates.filter((a) => allowsRelease(a.exam.releasePolicy));
+  const withheld = candidates.length - attempts.length;
   const now = new Date();
   await prisma.$transaction([
     prisma.attempt.updateMany({ where: { id: { in: attempts.map((a) => a.id) } }, data: { releasedAt: now } }),
@@ -150,10 +157,35 @@ export async function releaseResults(actor: Actor, attemptIds: string[]) {
       data: attempts.map((a) => ({ orgId: actor.orgId, actorId: actor.userId, action: "result.release", entityType: "attempt", entityId: a.id, after: { releasedAt: now.toISOString() } })),
     }),
   ]);
-  return { released: attempts.length, skipped: attemptIds.length - attempts.length };
+  return { released: attempts.length, skipped: attemptIds.length - candidates.length, withheld };
+}
+
+/**
+ * Takes released results back out of candidates' hands. Used when an exam is set
+ * to NEVER after the fact: a policy that only applied to future releases would
+ * not be a policy.
+ */
+export async function withdrawResultsForExam(examId: string, orgId: string, actorId: string | null) {
+  const released = await prisma.attempt.findMany({
+    where: { examId, exam: { orgId }, releasedAt: { not: null } },
+    select: { id: true },
+  });
+  if (released.length === 0) return { withdrawn: 0 };
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.attempt.updateMany({ where: { id: { in: released.map((a) => a.id) } }, data: { releasedAt: null } }),
+    prisma.auditLog.createMany({
+      data: released.map((a) => ({ orgId, actorId, action: "result.withdraw", entityType: "attempt", entityId: a.id, after: { releasedAt: null, at: now.toISOString() } })),
+    }),
+  ]);
+  return { withdrawn: released.length };
 }
 
 export async function releaseAllForExam(actor: Actor, examId: string) {
+  const exam = await prisma.exam.findFirst({ where: { id: examId, orgId: actor.orgId }, select: { releasePolicy: true } });
+  if (exam && !allowsRelease(exam.releasePolicy)) {
+    throw forbidden("This exam is set never to show results to candidates. Change its release policy first.");
+  }
   const ids = await prisma.attempt.findMany({ where: { examId, exam: { orgId: actor.orgId }, status: AttemptStatus.GRADED, releasedAt: null }, select: { id: true } });
   await audit({ actor, action: "exam.release-results", entityType: "exam", entityId: examId, after: { count: ids.length } });
   return releaseResults(actor, ids.map((i) => i.id));
