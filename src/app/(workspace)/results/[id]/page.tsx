@@ -84,6 +84,13 @@ export default async function AttemptReportPage({ params }: { params: Promise<{ 
           )}
           {report.viewer === "staff" && attempt.status === "GRADED" && !report.released && <ReleaseButton attemptId={attempt.id} />}
           {report.viewer === "staff" && report.released && <span className="draft-hint">Released to candidate</span>}
+          {/* The paper is a pure function of this seed, so a disputed draw can be
+              reproduced rather than argued about. */}
+          {report.attempt.randomSeed && (
+            <span className="draft-hint selectable" title="Seed the question draw and order were built from">
+              Paper seed {report.attempt.randomSeed}
+            </span>
+          )}
         </div>
       </div>
 

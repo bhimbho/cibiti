@@ -3,6 +3,8 @@ import { poolWhere } from "../exams/pool";
 import { prisma } from "@/lib/prisma";
 import { candidateView, createLayout, getItemType, parseResponse } from "@/items/registry";
 import { shuffleInPlace } from "@/items/shared";
+import type { Random } from "@/items/types";
+import { newSeed, seededRandom } from "@/lib/random";
 import type { Actor } from "../authz";
 import { conflict, forbidden, HttpError, notFound, toJson } from "../http";
 import { effectiveIntegrityLevel } from "../flags";
@@ -49,10 +51,16 @@ async function resolveSession(examId: string, accessCode: string | undefined, ip
 
 type PlannedItem = { sectionId: string; questionId: string; versionId: string; type: string; interaction: unknown; points: number };
 
-async function planItems(
+/**
+ * Builds one candidate's paper. Every random choice comes from `random`, so the
+ * same seed over the same bank produces the same paper — which is what makes a
+ * disputed draw auditable rather than a matter of trust.
+ */
+export async function planItems(
   orgId: string,
   sections: Prisma.SectionGetPayload<{ include: { items: { include: { version: true } }; rules: true } }>[],
   shuffleQuestions: boolean,
+  random: Random,
 ): Promise<PlannedItem[]> {
   const planned: PlannedItem[] = [];
   const used = new Set<string>();
@@ -68,14 +76,18 @@ async function planItems(
         where: poolWhere(orgId, rule, [...used]),
         select: { id: true, currentVersion: { select: { id: true, type: true, interaction: true } } },
       });
-      for (const question of shuffleInPlace(pool, Math.random).slice(0, rule.count)) {
+      // The pool is ordered by id first: Postgres makes no promise about the order
+      // of an unordered query, and a paper that depends on it is not reproducible
+      // from its seed.
+      pool.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      for (const question of shuffleInPlace(pool, random).slice(0, rule.count)) {
         if (!question.currentVersion) continue;
         used.add(question.id);
         sectionItems.push({ sectionId: section.id, questionId: question.id, versionId: question.currentVersion.id, type: question.currentVersion.type, interaction: question.currentVersion.interaction, points: rule.points });
       }
     }
 
-    planned.push(...(shuffleQuestions ? shuffleInPlace(sectionItems, Math.random) : sectionItems));
+    planned.push(...(shuffleQuestions ? shuffleInPlace(sectionItems, random) : sectionItems));
   }
   return planned;
 }
@@ -96,7 +108,11 @@ export async function startOrResumeAttempt(actor: Actor, examId: string, client:
   await assertEligible(actor, exam.id);
   const session = await resolveSession(examId, accessCode, client.ip, now);
 
-  const planned = await planItems(actor.orgId, exam.sections, exam.shuffleQuestions);
+  // One seed per attempt, from the OS CSPRNG, stored with it. Math.random was
+  // both unpredictable-in-theory-only and impossible to replay.
+  const seed = newSeed();
+  const random = seededRandom(seed);
+  const planned = await planItems(actor.orgId, exam.sections, exam.shuffleQuestions, random);
   if (planned.length === 0) throw conflict("This exam has no questions yet.");
 
   const accommodation = await prisma.accommodation.findFirst({
@@ -124,6 +140,7 @@ export async function startOrResumeAttempt(actor: Actor, examId: string, client:
         startedAt: now,
         deadlineAt: computeDeadline({ startedAt: now, timeLimitMin: exam.timeLimitMin, extraTimePct: accommodation?.extraTimePct ?? 0, extensionSec: 0, sessionEndsAt: session?.endsAt ?? null }),
         maxScore: planned.reduce((sum, p) => sum + p.points, 0),
+        randomSeed: seed,
         activeDeviceId: client.deviceId,
         ipAddress: client.ip,
         userAgent: client.userAgent,
@@ -135,7 +152,7 @@ export async function startOrResumeAttempt(actor: Actor, examId: string, client:
             questionId: p.questionId,
             versionId: p.versionId,
             points: p.points,
-            layout: toJson(createLayout(p.type, p.interaction, exam.shuffleOptions)) as Prisma.InputJsonValue,
+            layout: toJson(createLayout(p.type, p.interaction, exam.shuffleOptions, random)) as Prisma.InputJsonValue,
           })),
         },
         events: { create: { type: "attempt.started", severity: "INFO", payload: { ip: client.ip, userAgent: client.userAgent } } },

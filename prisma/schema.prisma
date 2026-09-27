@@ -730,6 +730,9 @@ model Attempt {
   activeDeviceId   String?
   ipAddress        String?
   userAgent        String?
+  /// Seed the paper was built from: question draw, question order and option
+  /// order all derive from it, so a disputed paper can be reproduced exactly.
+  randomSeed       String?
   score            Float?
   maxScore         Float
   percent          Float?

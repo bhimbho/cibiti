@@ -27,6 +27,8 @@ export type AttemptReport = {
     ipAddress: string | null;
     userAgent: string | null;
     attemptNo: number;
+    /** Staff only: the seed this paper was drawn from, for auditing a dispute. */
+    randomSeed: string | null;
   };
   candidate: { name: string; regNumber: string | null; email: string | null };
   exam: { id: string; title: string; passMarkPct: number };
@@ -110,6 +112,7 @@ export async function getAttemptReport(actor: Actor, attemptId: string): Promise
       ipAddress: viewer === "staff" ? attempt.ipAddress : null,
       userAgent: viewer === "staff" ? attempt.userAgent : null,
       attemptNo: attempt.attemptNo,
+      randomSeed: viewer === "staff" ? attempt.randomSeed : null,
     },
     candidate: { name: attempt.user.name, regNumber: attempt.user.regNumber, email: viewer === "staff" ? attempt.user.email : null },
     exam: { id: attempt.exam.id, title: attempt.exam.title, passMarkPct: attempt.exam.passMarkPct },
