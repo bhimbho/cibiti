@@ -535,17 +535,17 @@ Each phase ends with something demo-able. Sizes: S ≈ days, M ≈ 1–2 weeks, 
 
 ### Phase 3 — Import & export (M–L)
 - XLSX/CSV + media ZIP, DOCX with images & equations, Aiken, GIFT, Moodle XML, candidate + photo import.
-- Result exports, **university broadsheets** (CA + exam weighting, GPA-ready), **school term report sheets** (per class/arm, positions, CA + exam), **CBT-centre result slips**, certificates with QR, printable papers with answer keys, download centre.
+- **Done:** **university broadsheets** (CA + exam weighting, GPA-ready) with CSV download.
+- Still to do: **school term report sheets** (per class/arm, positions, CA + exam), **CBT-centre result slips**, certificates with QR, printable papers with answer keys, download centre.
 - QTI 3.0 import/export.
 
 ### Phase 4 — Grading (M)
-- Manual grading queue (by question, anonymous), rubrics, annotations, double marking & moderation.
-- Regrade jobs, grade scales, release policies, appeals.
+- **Done:** manual grading queue (by question, anonymous), re-marking for moderation, grade scales, release policies (including *never release*).
+- Still to do: rubrics, annotations, formal double marking, regrade jobs, appeals.
 
 ### Phase 5 — Analytics (M–L)
-- Stats jobs; exam dashboard (distribution, KR-20/α, SEM, cut-score what-if).
-- Item analysis with distractor trace lines and auto-recommendations; one-click fixes.
-- Candidate strengths & opportunities; cohort topic heatmaps; exportable reports.
+- **Done:** exam dashboard (distribution, α, SEM, cut-score what-if) and item analysis with a plain reading per question, computed on request.
+- Still to do: stats jobs for large cohorts, distractor trace lines, one-click fixes, candidate strengths & opportunities, cohort topic heatmaps, exportable reports.
 
 ### Phase 6 — Proctoring, built dark (L)
 All of this ships **behind feature flags, off by default** (exams default to L0 + passive logging).

@@ -2,7 +2,7 @@
 
 Computer-based testing for **universities, CBT centres and schools**, built to run on a **local network** with no internet required during exams. See [PLAN.md](PLAN.md) for the full product plan.
 
-## What works today (Phase 0)
+## What works today
 
 - **Resilient exam delivery**: attempts resume after a refresh, crash or network drop; answers autosave within a second with an offline queue; the server owns the deadline and a background worker auto-submits expired attempts.
 - **Candidate exam screen**: one question per page, question palette, flag for review, review screen, keyboard shortcuts (A–E, N, P, F), server-synced timer.
@@ -11,12 +11,17 @@ Computer-based testing for **universities, CBT centres and schools**, built to r
 - **Integrity**: every focus, fullscreen, clipboard and network event is logged. Enforcement is built but off unless the `proctoring` feature flag is enabled.
 - **Question bank & editor**: searchable table with bulk approve/retire; editor with images, subjects and topics, versioning, and a live candidate preview that checks the answer.
 - **Exam builder**: settings, sections, fixed questions and random draws, sittings with access codes, labs and IP allowlists, publish checks, close/duplicate.
-- **Results**: staff results table with release controls, attempt reports with answer review and integrity timeline; candidates see their own released results.
+- **Results**: staff results table with release controls and letter grades, attempt reports with answer review and integrity timeline; candidates see their own released results.
+- **Result release**: per exam — as soon as marking finishes, when the exam is closed, by hand, or never. Setting an exam to *never* also withdraws results already released.
+- **Marking queue**: answers a scorer cannot judge wait in a queue, marked one question at a time and anonymously by default; marking the last answer totals the attempt, closes it and applies the release policy. Re-marking for moderation re-totals without un-releasing.
+- **Exam statistics**: cohort summary, score distribution, Cronbach's α and standard error, a cut-score curve, and item analysis per question (difficulty, discrimination, top-minus-bottom index) with a plain reading of each.
+- **Grading scale**: editable bands — label, floor, grade point — used for letter grades and GPA; the default five-point scale until one is saved.
+- **Broadsheets**: courses carry weighted assessment components (CA + exam); the broadsheet compiles every registered candidate with weighted totals, grades and points, and downloads as CSV.
 - **People**: accounts with roles and generated one-time passwords, extra-time accommodations, CSV import in a background job.
 - **Academics**: departments, levels, groups/arms, sessions and terms, venues and labs, courses with registration by matric number.
 - **Invigilation & settings**: live console (add time, move computer, submit), feature-flag switches, audit log.
 
-Manual grading queues, analytics and advanced question types are next (Phases 4–7).
+Next: more question types and import/export formats (DOCX, XLSX, QTI), rubrics and double marking, and the proctoring levels above L1 (Phases 3, 4, 6–7).
 
 ## Stack
 
